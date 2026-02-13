@@ -1,0 +1,30 @@
+{
+  "name": "@jellyjelly/jellytent",
+  "version": "0.1.0",
+  "description": "AI video chat agent for JellyJelly",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "ts-node src/index.ts",
+    "test": "jest"
+  },
+  "keywords": [
+    "ai",
+    "video-chat",
+    "agent",
+    "jellyjelly"
+  ],
+  "author": "JellyJelly Inc.",
+  "license": "UNLICENSED",
+  "private": true,
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "jest": "^29.7.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.2"
+  },
+  "dependencies": {
+    "ws": "^8.14.2"
+  }
+}
