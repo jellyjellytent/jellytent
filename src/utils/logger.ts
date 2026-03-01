@@ -1,53 +1,100 @@
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
+interface LogContext {
+  [key: string]: unknown;
+}
+
 interface LogEntry {
   level: LogLevel;
   message: string;
-  timestamp: Date;
-  context?: Record<string, unknown>;
+  timestamp: string;
+  context?: LogContext;
 }
+
+const LOG_LEVELS: Record<LogLevel, number> = {
+  debug: 0,
+  info: 1,
+  warn: 2,
+  error: 3,
+};
 
 class Logger {
   private level: LogLevel = 'info';
-  private prefix: string = '[Jellytent]';
+  private prefix = 'jellytent';
+  private structured = false;
 
-  setLevel(level: LogLevel): void {
-    this.level = level;
+  configure(options: { level?: LogLevel; structured?: boolean }): void {
+    if (options.level) this.level = options.level;
+    if (options.structured !== undefined) this.structured = options.structured;
   }
 
   private shouldLog(level: LogLevel): boolean {
-    const levels: LogLevel[] = ['debug', 'info', 'warn', 'error'];
-    return levels.indexOf(level) >= levels.indexOf(this.level);
+    return LOG_LEVELS[level] >= LOG_LEVELS[this.level];
   }
 
-  private format(entry: LogEntry): string {
-    const time = entry.timestamp.toISOString();
+  private formatEntry(entry: LogEntry): string {
+    if (this.structured) {
+      return JSON.stringify({
+        ...entry,
+        service: this.prefix,
+      });
+    }
+
+    const time = entry.timestamp;
     const ctx = entry.context ? ` ${JSON.stringify(entry.context)}` : '';
-    return `${this.prefix} ${time} [${entry.level.toUpperCase()}] ${entry.message}${ctx}`;
+    return `[${this.prefix}] ${time} ${entry.level.toUpperCase()} ${entry.message}${ctx}`;
   }
 
-  debug(message: string, context?: Record<string, unknown>): void {
-    if (this.shouldLog('debug')) {
-      console.debug(this.format({ level: 'debug', message, timestamp: new Date(), context }));
+  private log(level: LogLevel, message: string, context?: LogContext): void {
+    if (!this.shouldLog(level)) return;
+
+    const entry: LogEntry = {
+      level,
+      message,
+      timestamp: new Date().toISOString(),
+      context,
+    };
+
+    const formatted = this.formatEntry(entry);
+
+    switch (level) {
+      case 'debug':
+        console.debug(formatted);
+        break;
+      case 'info':
+        console.info(formatted);
+        break;
+      case 'warn':
+        console.warn(formatted);
+        break;
+      case 'error':
+        console.error(formatted);
+        break;
     }
   }
 
-  info(message: string, context?: Record<string, unknown>): void {
-    if (this.shouldLog('info')) {
-      console.info(this.format({ level: 'info', message, timestamp: new Date(), context }));
-    }
+  debug(message: string, context?: LogContext): void {
+    this.log('debug', message, context);
   }
 
-  warn(message: string, context?: Record<string, unknown>): void {
-    if (this.shouldLog('warn')) {
-      console.warn(this.format({ level: 'warn', message, timestamp: new Date(), context }));
-    }
+  info(message: string, context?: LogContext): void {
+    this.log('info', message, context);
   }
 
-  error(message: string, context?: Record<string, unknown>): void {
-    if (this.shouldLog('error')) {
-      console.error(this.format({ level: 'error', message, timestamp: new Date(), context }));
-    }
+  warn(message: string, context?: LogContext): void {
+    this.log('warn', message, context);
+  }
+
+  error(message: string, context?: LogContext): void {
+    this.log('error', message, context);
+  }
+
+  child(prefix: string): Logger {
+    const child = new Logger();
+    child.prefix = `${this.prefix}:${prefix}`;
+    child.level = this.level;
+    child.structured = this.structured;
+    return child;
   }
 }
 

@@ -1,15 +1,37 @@
 {
   "name": "@jellyjelly/jellytent",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "AI video chat agent for JellyJelly",
   "main": "dist/index.js",
+  "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./avatar": {
+      "import": "./dist/avatar/index.mjs",
+      "require": "./dist/avatar/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "wasm"
+  ],
   "scripts": {
-    "build": "tsc",
-    "dev": "ts-node src/index.ts",
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "lint": "eslint src --ext .ts"
+    "build": "npm run build:wasm && npm run build:ts",
+    "build:ts": "tsup",
+    "build:wasm": "cd native/audio-processor && wasm-pack build --target web --out-dir ../../wasm",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "lint": "eslint src --ext .ts",
+    "lint:fix": "eslint src --ext .ts --fix",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist wasm"
   },
   "keywords": [
     "ai",
@@ -17,7 +39,9 @@
     "agent",
     "jellyjelly",
     "websocket",
-    "voice"
+    "voice",
+    "avatar",
+    "wasm"
   ],
   "author": "JellyJelly Inc.",
   "license": "UNLICENSED",
@@ -31,14 +55,14 @@
     "@typescript-eslint/eslint-plugin": "^6.13.0",
     "@typescript-eslint/parser": "^6.13.0",
     "eslint": "^8.54.0",
-    "jest": "^29.7.0",
-    "ts-jest": "^29.1.1",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.3.2"
+    "tsup": "^8.0.1",
+    "typescript": "^5.3.2",
+    "vitest": "^1.0.0"
   },
   "dependencies": {
     "eventemitter3": "^5.0.1",
     "uuid": "^9.0.1",
-    "ws": "^8.14.2"
+    "ws": "^8.14.2",
+    "zod": "^3.22.4"
   }
 }

@@ -1,9 +1,35 @@
+# Dependencies
 node_modules/
+
+# Build outputs
 dist/
+wasm/
+*.wasm
+
+# Rust
+native/*/target/
+native/*/pkg/
+Cargo.lock
+
+# Environment
 .env
-.env.local
-*.log
-npm-debug.log*
+.env.*
+!.env.example
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
 .DS_Store
+Thumbs.db
+
+# Test
 coverage/
 .nyc_output/
+
+# Logs
+*.log
+npm-debug.log*
