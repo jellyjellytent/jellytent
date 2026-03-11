@@ -1,0 +1,73 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "jellytent-ml"
+version = "0.4.0"
+description = "ML components for Jellytent video chat agent"
+readme = "README.md"
+license = {text = "Proprietary"}
+authors = [
+    {name = "JellyJelly Inc.", email = "engineering@jellyjelly.io"}
+]
+requires-python = ">=3.11"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: Other/Proprietary License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+    "numpy>=1.24.0",
+]
+
+[project.optional-dependencies]
+stt = [
+    "faster-whisper>=0.10.0",
+    "librosa>=0.10.0",
+]
+tts = [
+    "TTS>=0.22.0",
+]
+nlu = [
+    "transformers>=4.35.0",
+    "torch>=2.1.0",
+]
+all = [
+    "jellytent-ml[stt,tts,nlu]",
+]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.1.0",
+    "black>=23.11.0",
+    "ruff>=0.1.6",
+    "mypy>=1.7.0",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/jellyjelly/jellytent"
+"Documentation" = "https://docs.jellyjelly.io/jellytent/ml"
+
+[tool.setuptools.packages.find]
+where = ["."]
+
+[tool.black]
+line-length = 88
+target-version = ["py311"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+select = ["E", "F", "I", "N", "W", "UP"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

@@ -1,27 +1,40 @@
-import { LLMConfig, LLMConfigSchema, Message } from '../types';
+import { LLMConfig, LLMConfigSchema, Message, ToolCall } from '../types';
+import { withSpan } from '../observability/tracing';
 import { logger } from '../utils/logger';
 
 interface CompletionOptions {
   messages: Message[];
   stream?: boolean;
+  tools?: LLMConfig['tools'];
 }
 
 interface CompletionResponse {
+  id: string;
   content: string;
   finishReason: 'stop' | 'length' | 'tool_call';
-  usage?: {
+  toolCalls?: ToolCall[];
+  usage: {
     promptTokens: number;
     completionTokens: number;
+    totalTokens: number;
   };
 }
 
+interface StreamChunk {
+  id: string;
+  delta: string;
+  finishReason?: 'stop' | 'length' | 'tool_call';
+}
+
 export class LLMClient {
-  private config: LLMConfig;
-  private baseUrl: string;
+  private readonly config: LLMConfig;
+  private readonly baseUrl: string;
+  private readonly headers: Record<string, string>;
 
   constructor(config: Partial<LLMConfig>) {
     this.config = LLMConfigSchema.parse(config);
     this.baseUrl = this.getBaseUrl();
+    this.headers = this.getHeaders();
   }
 
   private getBaseUrl(): string {
@@ -36,27 +49,73 @@ export class LLMClient {
     }
   }
 
+  private getHeaders(): Record<string, string> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    // Provider-specific headers would be set here
+    // In production, API keys would be handled server-side
+
+    return headers;
+  }
+
   async complete(options: CompletionOptions): Promise<CompletionResponse> {
-    const { messages, stream = false } = options;
+    return withSpan('llm.complete', async (span) => {
+      const { messages, stream = false, tools } = options;
 
-    const formattedMessages = this.formatMessages(messages);
+      const formattedMessages = this.formatMessages(messages);
 
-    logger.debug('LLM request', {
-      provider: this.config.provider,
-      model: this.config.model,
-      messageCount: messages.length,
+      span?.setAttribute('llm.provider', this.config.provider);
+      span?.setAttribute('llm.model', this.config.model ?? 'default');
+      span?.setAttribute('llm.message_count', messages.length);
+      span?.setAttribute('llm.stream', stream);
+
+      logger.debug('LLM request', {
+        provider: this.config.provider,
+        model: this.config.model,
+        messageCount: messages.length,
+        hasTools: !!tools?.length,
+      });
+
+      const body = {
+        model: this.config.model,
+        messages: formattedMessages,
+        temperature: this.config.temperature,
+        max_tokens: this.config.maxTokens,
+        stream,
+        tools: tools?.map((t) => ({
+          type: 'function',
+          function: {
+            name: t.name,
+            description: t.description,
+            parameters: t.parameters,
+          },
+        })),
+      };
+
+      // Note: This is a placeholder implementation
+      // Actual HTTP calls would be made here
+      return {
+        id: `resp_${Date.now()}`,
+        content: '',
+        finishReason: 'stop',
+        usage: {
+          promptTokens: 0,
+          completionTokens: 0,
+          totalTokens: 0,
+        },
+      };
     });
+  }
 
-    // Note: Actual API call implementation would go here
-    // This is a placeholder that would be replaced with real HTTP calls
+  async *completeStream(options: CompletionOptions): AsyncGenerator<StreamChunk> {
+    const response = await this.complete({ ...options, stream: true });
 
-    return {
-      content: '',
-      finishReason: 'stop',
-      usage: {
-        promptTokens: 0,
-        completionTokens: 0,
-      },
+    yield {
+      id: response.id,
+      delta: response.content,
+      finishReason: response.finishReason,
     };
   }
 
@@ -75,11 +134,25 @@ export class LLMClient {
       ...messages.map((m) => ({
         role: m.role,
         content: m.content,
+        ...(m.metadata?.toolCalls && {
+          tool_calls: m.metadata.toolCalls.map((tc) => ({
+            id: tc.id,
+            type: 'function',
+            function: {
+              name: tc.name,
+              arguments: JSON.stringify(tc.arguments),
+            },
+          })),
+        }),
       })),
     ];
   }
 
   getConfig(): LLMConfig {
     return { ...this.config };
+  }
+
+  setSystemPrompt(prompt: string): void {
+    (this.config as { systemPrompt: string }).systemPrompt = prompt;
   }
 }

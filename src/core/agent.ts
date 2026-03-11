@@ -1,24 +1,26 @@
 import EventEmitter from 'eventemitter3';
 import { v4 as uuidv4 } from 'uuid';
-import { AgentConfig, AgentConfigSchema, AgentState, Message, TransportMessage } from '../types';
+import { AgentConfig, AgentConfigSchema, AgentState, Message, TransportMessage, ConnectionError } from '../types';
 import { WebSocketTransport } from '../transport/websocket';
+import { withSpan } from '../observability/tracing';
 import { logger } from '../utils/logger';
 
 interface AgentEvents {
-  'state:change': (state: AgentState) => void;
+  'state:change': (state: AgentState, prevState: AgentState) => void;
   'message': (message: Message) => void;
   'error': (error: Error) => void;
   'connected': () => void;
-  'disconnected': () => void;
+  'disconnected': (reason: { reason: string; code?: number }) => void;
 }
 
 export class Agent extends EventEmitter<AgentEvents> {
-  private config: AgentConfig;
+  private readonly config: AgentConfig;
   private state: AgentState = 'idle';
   private messages: Message[] = [];
   private transport: WebSocketTransport | null = null;
-  private sessionId: string;
+  private readonly sessionId: string;
   private reconnectAttempts = 0;
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(config: AgentConfig) {
     super();
@@ -38,38 +40,41 @@ export class Agent extends EventEmitter<AgentEvents> {
     if (this.state !== state) {
       const prev = this.state;
       this.state = state;
-      logger.debug('State transition', { from: prev, to: state });
-      this.emit('state:change', state);
+      logger.debug('State transition', { from: prev, to: state, sessionId: this.sessionId });
+      this.emit('state:change', state, prev);
     }
   }
 
   async connect(): Promise<void> {
-    if (this.transport?.isConnected()) {
-      logger.warn('Already connected');
-      return;
-    }
+    return withSpan('agent.connect', async (span) => {
+      if (this.transport?.isConnected()) {
+        logger.warn('Already connected');
+        return;
+      }
 
-    this.setState('connecting');
-    logger.info('Connecting to server', { endpoint: this.config.endpoint });
+      this.setState('connecting');
+      span?.setAttribute('endpoint', this.config.endpoint ?? 'default');
 
-    try {
-      this.transport = new WebSocketTransport({
-        url: this.config.endpoint!,
-        apiKey: this.config.apiKey,
-        sessionId: this.sessionId,
-      });
+      try {
+        this.transport = new WebSocketTransport({
+          url: this.config.endpoint!,
+          apiKey: this.config.apiKey,
+          sessionId: this.sessionId,
+          timeout: this.config.connectionTimeout,
+        });
 
-      await this.transport.connect();
-      this.setupTransportHandlers();
-      this.reconnectAttempts = 0;
-      this.setState('connected');
-      this.emit('connected');
-      logger.info('Connected successfully');
-    } catch (error) {
-      logger.error('Connection failed', { error });
-      this.setState('error');
-      throw error;
-    }
+        await this.transport.connect();
+        this.setupTransportHandlers();
+        this.reconnectAttempts = 0;
+        this.setState('connected');
+        this.emit('connected');
+        logger.info('Connected successfully', { sessionId: this.sessionId });
+      } catch (error) {
+        logger.error('Connection failed', { error, sessionId: this.sessionId });
+        this.setState('error');
+        throw new ConnectionError('Failed to connect to server', error as Error);
+      }
+    });
   }
 
   private setupTransportHandlers(): void {
@@ -79,83 +84,112 @@ export class Agent extends EventEmitter<AgentEvents> {
       this.handleMessage(data);
     });
 
-    this.transport.on('close', () => {
-      logger.info('Connection closed');
-      this.handleDisconnect();
+    this.transport.on('close', (code, reason) => {
+      logger.info('Connection closed', { code, reason, sessionId: this.sessionId });
+      this.handleDisconnect(code, reason);
     });
 
     this.transport.on('error', (error) => {
-      logger.error('Transport error', { error });
+      logger.error('Transport error', { error, sessionId: this.sessionId });
       this.emit('error', error);
     });
   }
 
   private handleMessage(data: TransportMessage): void {
-    if (data.type === 'text') {
-      const message: Message = {
-        id: uuidv4(),
-        role: 'assistant',
-        content: data.payload as string,
-        timestamp: Date.now(),
-      };
+    withSpan('agent.handleMessage', (span) => {
+      span?.setAttribute('message.type', data.type);
 
-      this.messages.push(message);
-      this.setState('connected');
-      this.emit('message', message);
-    } else if (data.type === 'control') {
-      this.handleControlMessage(data.payload as Record<string, unknown>);
-    }
+      if (data.type === 'text') {
+        const message: Message = {
+          id: uuidv4(),
+          role: 'assistant',
+          content: data.payload as string,
+          timestamp: Date.now(),
+        };
+
+        this.messages.push(message);
+        this.setState('connected');
+        this.emit('message', message);
+      } else if (data.type === 'control') {
+        this.handleControlMessage(data.payload as Record<string, unknown>);
+      }
+    });
   }
 
   private handleControlMessage(payload: Record<string, unknown>): void {
     const action = payload['action'];
 
-    if (action === 'processing_start') {
-      this.setState('processing');
-    } else if (action === 'speaking_start') {
-      this.setState('speaking');
-    } else if (action === 'speaking_end') {
-      this.setState('connected');
+    switch (action) {
+      case 'processing_start':
+        this.setState('processing');
+        break;
+      case 'speaking_start':
+        this.setState('speaking');
+        break;
+      case 'speaking_end':
+        this.setState('connected');
+        break;
+      case 'listening_start':
+        this.setState('listening');
+        break;
     }
   }
 
-  private async handleDisconnect(): Promise<void> {
-    this.setState('idle');
-    this.emit('disconnected');
+  private handleDisconnect(code: number, reason: string): void {
+    this.setState('disconnected');
+    this.emit('disconnected', { reason, code });
 
     if (this.config.reconnect && this.reconnectAttempts < (this.config.maxReconnectAttempts ?? 5)) {
-      this.reconnectAttempts++;
-      const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000);
-      logger.info('Reconnecting', { attempt: this.reconnectAttempts, delay });
+      this.scheduleReconnect();
+    }
+  }
 
-      await new Promise((resolve) => setTimeout(resolve, delay));
+  private scheduleReconnect(): void {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+    }
 
+    this.reconnectAttempts++;
+    const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000);
+    const jitter = Math.random() * 1000;
+
+    logger.info('Scheduling reconnect', {
+      attempt: this.reconnectAttempts,
+      delay: delay + jitter,
+      sessionId: this.sessionId,
+    });
+
+    this.reconnectTimer = setTimeout(async () => {
       try {
         await this.connect();
       } catch {
         // Reconnect failed, will retry
       }
-    }
+    }, delay + jitter);
   }
 
   async send(content: string): Promise<void> {
-    this.ensureConnected();
+    return withSpan('agent.send', async (span) => {
+      this.ensureConnected();
 
-    const message: Message = {
-      id: uuidv4(),
-      role: 'user',
-      content,
-      timestamp: Date.now(),
-    };
+      const message: Message = {
+        id: uuidv4(),
+        role: 'user',
+        content,
+        timestamp: Date.now(),
+      };
 
-    this.messages.push(message);
-    this.setState('processing');
+      this.messages.push(message);
+      this.setState('processing');
 
-    await this.transport!.send({
-      type: 'text',
-      payload: content,
-      seq: this.messages.length,
-      timestamp: Date.now(),
+      span?.setAttribute('message.length', content.length);
+
+      await this.transport!.send({
+        type: 'text',
+        payload: content,
+        seq: this.messages.length,
+        timestamp: Date.now(),
+      });
     });
   }
 
@@ -171,10 +205,16 @@ export class Agent extends EventEmitter<AgentEvents> {
   }
 
   async disconnect(): Promise<void> {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+
     if (this.transport) {
       await this.transport.close();
       this.transport = null;
     }
+
     this.setState('idle');
   }
 
@@ -184,12 +224,12 @@ export class Agent extends EventEmitter<AgentEvents> {
 
   clearHistory(): void {
     this.messages = [];
-    logger.debug('History cleared');
+    logger.debug('History cleared', { sessionId: this.sessionId });
   }
 
   private ensureConnected(): void {
     if (!this.transport?.isConnected()) {
-      throw new Error('Not connected');
+      throw new ConnectionError('Not connected to server');
     }
   }
 }

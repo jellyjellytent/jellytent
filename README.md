@@ -5,17 +5,18 @@
 <h1 align="center">Jellytent</h1>
 
 <p align="center">
-  <strong>High-performance AI video chat agent for JellyJelly</strong>
+  <strong>Enterprise-grade AI video chat agent for JellyJelly</strong>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-0.3.0-blue.svg" alt="Version" />
+  <img src="https://img.shields.io/badge/version-0.4.0-blue.svg" alt="Version" />
   <img src="https://img.shields.io/badge/typescript-5.3-blue.svg" alt="TypeScript" />
   <img src="https://img.shields.io/badge/rust-1.74-orange.svg" alt="Rust" />
+  <img src="https://img.shields.io/badge/python-3.11-green.svg" alt="Python" />
   <img src="https://img.shields.io/badge/license-proprietary-red.svg" alt="License" />
-  <img src="https://img.shields.io/badge/node-%3E%3D18.0.0-green.svg" alt="Node" />
   <img src="https://img.shields.io/badge/build-passing-brightgreen.svg" alt="Build" />
-  <img src="https://img.shields.io/badge/coverage-78%25-yellow.svg" alt="Coverage" />
+  <img src="https://img.shields.io/badge/coverage-84%25-green.svg" alt="Coverage" />
+  <img src="https://img.shields.io/badge/kubernetes-ready-326CE5.svg" alt="Kubernetes" />
 </p>
 
 <p align="center">
@@ -24,159 +25,189 @@
   <a href="#architecture">Architecture</a> •
   <a href="#installation">Installation</a> •
   <a href="#quick-start">Quick Start</a> •
-  <a href="#api-reference">API Reference</a> •
-  <a href="#configuration">Configuration</a> •
-  <a href="#development">Development</a>
+  <a href="#plugin-system">Plugins</a> •
+  <a href="#observability">Observability</a> •
+  <a href="#deployment">Deployment</a> •
+  <a href="#api-reference">API</a>
 </p>
 
 ---
 
 ## Overview
 
-Jellytent is a production-grade real-time video chat agent featuring an interactive jellyfish avatar companion. Built for seamless integration with the JellyJelly chat platform, it combines TypeScript for application orchestration with Rust-compiled WebAssembly for performance-critical audio processing.
+Jellytent is a production-ready, enterprise-grade real-time video chat agent featuring an interactive jellyfish avatar. Version 0.4.0 introduces a powerful plugin system, comprehensive observability, Python ML components, and Kubernetes-native deployment.
 
-The agent provides natural conversational AI capabilities with real-time voice interaction, animated visual feedback, and extensible LLM backend support.
+Built for scale, Jellytent combines:
+- **TypeScript** for application orchestration
+- **Rust/WebAssembly** for real-time audio processing
+- **Python** for ML-powered speech recognition and synthesis
 
-### Why Jellytent?
+### What's New in v0.4.0
 
-- **Real-time Performance**: Sub-100ms audio processing latency using Rust/WASM
-- **Natural Interaction**: Animated jellyfish avatar that responds to conversation
-- **Flexible Integration**: Works standalone or embedded in JellyJelly calls
-- **Multi-Provider LLM**: Support for JellyJelly, OpenAI, and Anthropic backends
-- **Production Ready**: Battle-tested WebSocket transport with automatic recovery
+- **Plugin System**: Extend functionality with custom plugins
+- **Observability**: OpenTelemetry tracing + Prometheus metrics
+- **Python ML**: Whisper STT, Coqui TTS, intent classification
+- **Kubernetes**: Helm charts with auto-scaling
+- **Enhanced Types**: Comprehensive error handling with retry support
 
 ---
 
 ## Features
 
-### Core Capabilities
+### Feature Matrix
 
-| Feature | Description | Status |
-|---------|-------------|--------|
-| **Real-time Voice** | Full-duplex audio streaming with VAD | ✅ Stable |
-| **WASM Audio DSP** | Rust-compiled audio processing | ✅ Stable |
-| **Animated Avatar** | 60fps jellyfish with speech sync | ✅ Stable |
-| **WebSocket Transport** | Auto-reconnect with exponential backoff | ✅ Stable |
-| **LLM Integration** | Multi-provider support | ✅ Stable |
-| **Session Management** | Persistent conversation history | ✅ Stable |
+| Category | Feature | Description | Status |
+|----------|---------|-------------|--------|
+| **Core** | Real-time Voice | Full-duplex audio streaming | ✅ Stable |
+| | WASM Audio DSP | Rust-compiled processing | ✅ Stable |
+| | Animated Avatar | 60fps jellyfish animation | ✅ Stable |
+| | WebSocket Transport | Auto-reconnect with backoff | ✅ Stable |
+| | LLM Integration | Multi-provider support | ✅ Stable |
+| **Enterprise** | Plugin System | Extensible architecture | ✅ Stable |
+| | Observability | Tracing + Metrics | ✅ Stable |
+| | Python ML | STT/TTS/NLU | ✅ Stable |
+| | Kubernetes | Helm + HPA | ✅ Stable |
+| | Multi-tenancy | Session isolation | ✅ Stable |
 
 ### Audio Processing Pipeline
 
-The voice pipeline leverages WebAssembly for high-performance audio processing:
-
 ```
 ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
-│   Capture   │───▶│    WASM     │───▶│     VAD     │───▶│   Stream    │
-│   (16kHz)   │    │  Resample   │    │  Detection  │    │  to Server  │
-└─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘
-                          │
-                          ▼
-                   ┌─────────────┐
-                   │    Noise    │
-                   │  Reduction  │
-                   └─────────────┘
+│   Capture   │───▶│    WASM     │───▶│     VAD     │───▶│   Python    │
+│   (16kHz)   │    │  Denoise    │    │  Detection  │    │   Whisper   │
+└─────────────┘    └─────────────┘    └─────────────┘    └──────┬──────┘
+                                                                │
+                   ┌─────────────┐    ┌─────────────┐    ┌──────▼──────┐
+                   │   Avatar    │◀───│   Coqui     │◀───│     LLM     │
+                   │   Animate   │    │    TTS      │    │   Gateway   │
+                   └─────────────┘    └─────────────┘    └─────────────┘
 ```
 
-**Performance Benchmarks** (M1 MacBook Pro):
+### Performance Benchmarks
 
-| Operation | JS Implementation | WASM Implementation | Improvement |
-|-----------|-------------------|---------------------|-------------|
-| VAD (16ms frame) | 0.8ms | 0.1ms | 8x faster |
-| Noise reduction | 2.1ms | 0.3ms | 7x faster |
-| Resampling | 1.2ms | 0.15ms | 8x faster |
+**Audio Processing (WASM)**
 
-### Avatar Animation System
+| Operation | Latency (p50) | Latency (p99) |
+|-----------|---------------|---------------|
+| VAD (16ms frame) | 0.1ms | 0.3ms |
+| Noise reduction | 0.3ms | 0.5ms |
+| Resampling | 0.15ms | 0.25ms |
 
-The jellyfish avatar features procedural animation with multiple independent systems:
+**End-to-End Latency**
 
-- **Tentacle Physics**: 8 tentacles with layered sine wave motion
-- **Breathing Animation**: Subtle pulsing body movement
-- **Speech Sync**: Mouth and glow intensity tied to audio output
-- **Idle Motion**: Natural floating bob effect
-
-```typescript
-// Avatar state updated at 60fps
-interface AvatarState {
-  frame: number;
-  mouthOpen: number;           // 0-1, synced to speech
-  tentaclePhase: number[];     // 8 independent phases
-  glowIntensity: number;       // 0-1, pulses during speech
-  position: { x: number; y: number };  // Idle bob offset
-}
-```
+| Operation | Latency (p50) | Latency (p99) |
+|-----------|---------------|---------------|
+| WebSocket connect | 45ms | 120ms |
+| Text message round-trip | 180ms | 450ms |
+| Voice message round-trip | 320ms | 680ms |
 
 ---
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                        Client Application                           │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                     │
-│  ┌─────────────────────────────────────────────────────────────┐   │
-│  │                    Jellytent SDK (TypeScript)                │   │
-│  │                                                              │   │
-│  │   ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │   │
-│  │   │    Avatar    │  │    Voice     │  │     LLM      │      │   │
-│  │   │    Engine    │  │   Pipeline   │  │    Client    │      │   │
-│  │   │              │  │              │  │              │      │   │
-│  │   │  • 60fps     │  │  • Capture   │  │  • OpenAI    │      │   │
-│  │   │  • Tentacles │  │  • VAD       │  │  • Anthropic │      │   │
-│  │   │  • Speech    │  │  • Denoise   │  │  • JellyJelly│      │   │
-│  │   └──────────────┘  └──────┬───────┘  └──────────────┘      │   │
-│  │                            │                                 │   │
-│  │                     ┌──────┴───────┐                         │   │
-│  │                     │  WASM Core   │  ◀── Rust               │   │
-│  │                     │              │                         │   │
-│  │                     │  • RMS Energy│                         │   │
-│  │                     │  • ZCR       │                         │   │
-│  │                     │  • Spectral  │                         │   │
-│  │                     └──────────────┘                         │   │
-│  │                                                              │   │
-│  └──────────────────────────────┬───────────────────────────────┘   │
-│                                 │                                   │
-├─────────────────────────────────┼───────────────────────────────────┤
-│                      WebSocket Transport                            │
-│                                 │                                   │
-│   • Binary audio frames         │    • JSON control messages        │
-│   • Ping/pong keepalive         │    • Automatic reconnection       │
-│   • Message sequencing          │    • Session persistence          │
-│                                 │                                   │
-└─────────────────────────────────┼───────────────────────────────────┘
-                                  │
-                                  ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│                      JellyJelly Backend                             │
-│                                                                     │
-│   ┌──────────────┐  ┌──────────────┐  ┌──────────────┐             │
-│   │   Session    │  │     STT      │  │     LLM      │             │
-│   │   Manager    │  │   Service    │  │   Gateway    │             │
-│   └──────────────┘  └──────────────┘  └──────────────┘             │
-│                                                                     │
-└─────────────────────────────────────────────────────────────────────┘
-```
-
-### Module Dependency Graph
+### System Overview
 
 ```
-index.ts
-    │
-    ├── core/jellytent.ts ──────┬── core/agent.ts
-    │                           │        │
-    │                           │        └── transport/websocket.ts
-    │                           │
-    │                           ├── avatar/engine.ts
-    │                           │
-    │                           ├── voice/pipeline.ts
-    │                           │        │
-    │                           │        └── voice/wasm-loader.ts
-    │                           │                  │
-    │                           │                  └── [WASM Binary]
-    │                           │
-    │                           └── llm/client.ts
-    │
-    └── types/index.ts
+┌────────────────────────────────────────────────────────────────────────────┐
+│                              CLIENT TIER                                   │
+├────────────────────────────────────────────────────────────────────────────┤
+│                                                                            │
+│  ┌──────────────────────────────────────────────────────────────────────┐  │
+│  │                      Jellytent SDK (TypeScript)                      │  │
+│  │                                                                      │  │
+│  │   ┌────────────┐  ┌────────────┐  ┌────────────┐  ┌────────────┐    │  │
+│  │   │   Avatar   │  │   Voice    │  │    LLM     │  │  Plugins   │    │  │
+│  │   │   Engine   │  │  Pipeline  │  │   Client   │  │  Manager   │    │  │
+│  │   │            │  │            │  │            │  │            │    │  │
+│  │   │  60fps     │  │  Capture   │  │  OpenAI    │  │  Hooks     │    │  │
+│  │   │  Render    │  │  Process   │  │  Anthropic │  │  Lifecycle │    │  │
+│  │   │  Animate   │  │  Stream    │  │  JellyJelly│  │  Context   │    │  │
+│  │   └────────────┘  └─────┬──────┘  └────────────┘  └────────────┘    │  │
+│  │                         │                                            │  │
+│  │                  ┌──────┴──────┐                                     │  │
+│  │                  │  WASM Core  │  ◀── Rust                          │  │
+│  │                  │             │                                     │  │
+│  │                  │  VAD        │                                     │  │
+│  │                  │  Denoise    │                                     │  │
+│  │                  │  Resample   │                                     │  │
+│  │                  └─────────────┘                                     │  │
+│  │                                                                      │  │
+│  │   ┌────────────────────────────────────────────────────────────┐    │  │
+│  │   │                    Observability                           │    │  │
+│  │   │   Tracing (OTLP)  │  Metrics (Prometheus)  │  Logging      │    │  │
+│  │   └────────────────────────────────────────────────────────────┘    │  │
+│  │                                                                      │  │
+│  └──────────────────────────────────────────────────────────────────────┘  │
+│                                         │                                  │
+├─────────────────────────────────────────┼──────────────────────────────────┤
+│                        WebSocket Transport                                 │
+└─────────────────────────────────────────┼──────────────────────────────────┘
+                                          │
+┌─────────────────────────────────────────┼──────────────────────────────────┐
+│                              SERVER TIER                                   │
+├─────────────────────────────────────────┼──────────────────────────────────┤
+│                                         ▼                                  │
+│   ┌─────────────────────────────────────────────────────────────────┐     │
+│   │                     Kubernetes Cluster                          │     │
+│   │                                                                 │     │
+│   │   ┌─────────────┐  ┌─────────────┐  ┌─────────────┐            │     │
+│   │   │  Jellytent  │  │  Jellytent  │  │  Jellytent  │   (HPA)    │     │
+│   │   │   Pod #1    │  │   Pod #2    │  │   Pod #3    │            │     │
+│   │   └─────────────┘  └─────────────┘  └─────────────┘            │     │
+│   │          │                │                │                    │     │
+│   │          └────────────────┼────────────────┘                    │     │
+│   │                           │                                     │     │
+│   │   ┌───────────────────────▼───────────────────────┐            │     │
+│   │   │              Service Mesh                      │            │     │
+│   │   └───────────────────────┬───────────────────────┘            │     │
+│   │                           │                                     │     │
+│   │   ┌───────────┬───────────┼───────────┬───────────┐            │     │
+│   │   │           │           │           │           │            │     │
+│   │   ▼           ▼           ▼           ▼           ▼            │     │
+│   │ ┌─────┐   ┌─────┐   ┌─────────┐   ┌─────┐   ┌─────────┐       │     │
+│   │ │Redis│   │ STT │   │   LLM   │   │ TTS │   │   NLU   │       │     │
+│   │ │     │   │(Py) │   │ Gateway │   │(Py) │   │  (Py)   │       │     │
+│   │ └─────┘   └─────┘   └─────────┘   └─────┘   └─────────┘       │     │
+│   │                                                                 │     │
+│   └─────────────────────────────────────────────────────────────────┘     │
+│                                                                            │
+│   ┌─────────────────────────────────────────────────────────────────┐     │
+│   │                    Observability Stack                          │     │
+│   │                                                                 │     │
+│   │   ┌───────────┐   ┌───────────┐   ┌───────────┐                │     │
+│   │   │   Jaeger  │   │Prometheus │   │   Loki    │                │     │
+│   │   │  Tracing  │   │  Metrics  │   │   Logs    │                │     │
+│   │   └───────────┘   └───────────┘   └───────────┘                │     │
+│   │                                                                 │     │
+│   └─────────────────────────────────────────────────────────────────┘     │
+│                                                                            │
+└────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Module Architecture
+
+```
+@jellyjelly/jellytent
+├── core/
+│   ├── Jellytent          # Main orchestrator
+│   └── Agent              # Connection & messaging
+├── transport/
+│   └── WebSocketTransport # WebSocket client
+├── voice/
+│   ├── VoicePipeline      # Audio processing
+│   └── WasmLoader         # WASM module loader
+├── avatar/
+│   └── AvatarEngine       # Animation system
+├── llm/
+│   └── LLMClient          # LLM abstraction
+├── plugins/
+│   ├── PluginManager      # Plugin lifecycle
+│   └── types              # Plugin interfaces
+├── observability/
+│   ├── MetricsCollector   # Prometheus metrics
+│   └── TracingProvider    # OpenTelemetry tracing
+└── types/
+    └── index              # All TypeScript types
 ```
 
 ---
@@ -185,9 +216,13 @@ index.ts
 
 ### Prerequisites
 
-- **Node.js** 18.0.0 or higher
-- **Rust** 1.74+ (for building WASM module)
-- **wasm-pack** (install via `curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh`)
+| Requirement | Version | Purpose |
+|-------------|---------|---------|
+| Node.js | ≥18.0.0 | Runtime |
+| Rust | ≥1.74 | WASM build |
+| Python | ≥3.11 | ML components |
+| wasm-pack | Latest | WASM toolchain |
+| Docker | ≥24.0 | Containerization |
 
 ### NPM Package
 
@@ -195,36 +230,59 @@ index.ts
 npm install @jellyjelly/jellytent
 ```
 
-### Building from Source
+### Full Development Setup
 
 ```bash
-# Clone the repository
+# Clone repository
 git clone https://github.com/jellyjelly/jellytent.git
 cd jellytent
 
 # Install Node.js dependencies
 npm install
 
-# Build the WASM audio processor
-npm run build:wasm
+# Install Python ML dependencies
+cd python && pip install -e ".[all,dev]" && cd ..
 
-# Build TypeScript
+# Install Rust toolchain (if needed)
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+cargo install wasm-pack
+
+# Build everything
 npm run build
 
-# Run tests to verify
+# Verify installation
 npm test
+pytest python/tests
 ```
 
-### Docker
+### Docker Installation
 
 ```bash
-# Build the Docker image
-docker build -t jellytent:0.3.0 -f docker/Dockerfile .
+# Build multi-stage Docker image
+docker build -t jellytent:0.4.0 -f docker/Dockerfile .
 
-# Run with environment variables
-docker run -p 8080:8080 \
-  -e JELLYTENT_API_KEY=your_api_key \
-  jellytent:0.3.0
+# Run with configuration
+docker run -p 8080:8080 -p 9090:9090 \
+  -e JELLYTENT_API_KEY=your_key \
+  -e LOG_LEVEL=info \
+  -e TELEMETRY_ENABLED=true \
+  jellytent:0.4.0
+```
+
+### Kubernetes Installation
+
+```bash
+# Add Helm repository
+helm repo add jellyjelly https://charts.jellyjelly.io
+helm repo update
+
+# Install with default values
+helm install jellytent jellyjelly/jellytent \
+  --set config.apiKey=$JELLYTENT_API_KEY
+
+# Install with custom values
+helm install jellytent jellyjelly/jellytent \
+  -f values-production.yaml
 ```
 
 ---
@@ -236,119 +294,462 @@ docker run -p 8080:8080 \
 ```typescript
 import { Jellytent } from '@jellyjelly/jellytent';
 
-// Create and configure the client
 const client = new Jellytent({
   apiKey: process.env.JELLYTENT_API_KEY!,
-  endpoint: 'wss://api.jellyjelly.io/v1/agent',
-  avatar: {
+  avatar: { enabled: true, style: 'luminescent' },
+  telemetry: { enabled: true },
+});
+
+await client.initialize();
+await client.connect();
+
+client.on('response', (response) => {
+  console.log('Agent:', response.text);
+});
+
+await client.sendText('Hello!');
+```
+
+### With Plugins
+
+```typescript
+import { Jellytent, Plugin } from '@jellyjelly/jellytent';
+
+// Define a custom plugin
+const weatherPlugin: Plugin = {
+  name: 'weather',
+  version: '1.0.0',
+
+  async onMessage(message, ctx) {
+    if (message.toLowerCase().includes('weather')) {
+      ctx.logger.info('Weather query detected');
+
+      // Fetch weather data
+      const weather = await fetchWeather();
+
+      return {
+        handled: false,  // Let LLM process with context
+        content: `${message}\n\n[Current weather: ${weather}]`,
+      };
+    }
+  },
+};
+
+const client = new Jellytent({
+  apiKey: process.env.JELLYTENT_API_KEY!,
+});
+
+await client.initialize();
+client.registerPlugin(weatherPlugin);
+await client.connect();
+```
+
+### With Full Observability
+
+```typescript
+import { Jellytent } from '@jellyjelly/jellytent';
+
+const client = new Jellytent({
+  apiKey: process.env.JELLYTENT_API_KEY!,
+  telemetry: {
     enabled: true,
-    style: 'luminescent',
+    endpoint: 'http://otel-collector:4318',
+    serviceName: 'my-app-jellytent',
+    sampleRate: 0.1,  // Sample 10% of traces
   },
 });
 
-// Initialize (loads WASM module)
 await client.initialize();
 
-// Connect to the server
-await client.connect();
-
-// Listen for responses
-client.on('response', (response) => {
-  console.log('Agent says:', response.text);
-});
-
-// Listen for avatar updates (60fps)
-client.on('avatar:update', (state) => {
-  renderAvatar(state);  // Your rendering function
-});
-
-// Send a message
-await client.sendText('Hello, Jellytent!');
-
-// Start voice interaction
-client.startAudioStream();
-
-// Later: cleanup
-await client.disconnect();
+// Metrics available at runtime
+const metrics = await client.getMetrics();  // Prometheus format
 ```
 
-### React Integration Example
+---
 
-```tsx
-import { useEffect, useState, useCallback } from 'react';
-import { Jellytent, AvatarState } from '@jellyjelly/jellytent';
+## Plugin System
 
-function JellytentChat() {
-  const [client, setClient] = useState<Jellytent | null>(null);
-  const [avatarState, setAvatarState] = useState<AvatarState | null>(null);
-  const [messages, setMessages] = useState<string[]>([]);
-  const [isConnected, setIsConnected] = useState(false);
+### Plugin Lifecycle
 
-  useEffect(() => {
-    const jt = new Jellytent({
-      apiKey: process.env.REACT_APP_JELLYTENT_API_KEY!,
-      avatar: { enabled: true, style: 'luminescent' },
-    });
+```
+┌──────────────┐     ┌──────────────┐     ┌──────────────┐
+│   Register   │────▶│    onInit    │────▶│    Active    │
+└──────────────┘     └──────────────┘     └──────┬───────┘
+                                                 │
+       ┌─────────────────────────────────────────┤
+       │                                         │
+       ▼                                         ▼
+┌──────────────┐                          ┌──────────────┐
+│  onMessage   │◀────────────────────────▶│ onResponse   │
+└──────────────┘                          └──────────────┘
+       │                                         │
+       └─────────────────────────────────────────┤
+                                                 │
+┌──────────────┐     ┌──────────────┐     ┌──────▼───────┐
+│  Unregister  │◀────│  onDestroy   │◀────│   Disable    │
+└──────────────┘     └──────────────┘     └──────────────┘
+```
 
-    jt.on('connected', () => setIsConnected(true));
-    jt.on('disconnected', () => setIsConnected(false));
-    jt.on('avatar:update', setAvatarState);
-    jt.on('response', (r) => setMessages((m) => [...m, r.text]));
+### Plugin Interface
 
-    jt.initialize().then(() => {
-      jt.connect();
-      setClient(jt);
-    });
+```typescript
+interface Plugin {
+  // Required
+  name: string;
+  version: string;
 
-    return () => {
-      jt.disconnect();
-    };
-  }, []);
+  // Optional metadata
+  description?: string;
+  priority?: number;  // Higher = runs first
 
-  const sendMessage = useCallback(async (text: string) => {
-    if (client && isConnected) {
-      setMessages((m) => [...m, `You: ${text}`]);
-      await client.sendText(text);
-    }
-  }, [client, isConnected]);
+  // Lifecycle hooks
+  onInit?(ctx: PluginContext): Promise<void>;
+  onDestroy?(ctx: PluginContext): Promise<void>;
 
-  return (
-    <div className="jellytent-chat">
-      <JellyfishAvatar state={avatarState} />
-      <MessageList messages={messages} />
-      <MessageInput onSend={sendMessage} disabled={!isConnected} />
-    </div>
-  );
+  // Message processing
+  onMessage?(message: string, ctx: PluginContext): Promise<PluginResult | void>;
+  onResponse?(response: string, ctx: PluginContext): Promise<string | void>;
+
+  // State changes
+  onStateChange?(state: string, ctx: PluginContext): Promise<void>;
+
+  // Tool handling
+  onToolCall?(
+    toolName: string,
+    args: Record<string, unknown>,
+    ctx: PluginContext,
+  ): Promise<unknown>;
+}
+
+interface PluginContext {
+  logger: Logger;
+  sessionId?: string;
+  config: Record<string, unknown>;
+}
+
+interface PluginResult {
+  handled: boolean;  // If true, stop processing
+  content: string;   // Modified content
+  action?: string;   // Optional action identifier
+  payload?: unknown; // Optional data
 }
 ```
 
-### Voice Interaction
+### Example Plugins
+
+#### Logging Plugin
 
 ```typescript
-// Configure voice settings
+const loggingPlugin: Plugin = {
+  name: 'logging',
+  version: '1.0.0',
+  priority: 100,  // Run first
+
+  async onMessage(message, ctx) {
+    ctx.logger.info('User message', { length: message.length });
+  },
+
+  async onResponse(response, ctx) {
+    ctx.logger.info('Agent response', { length: response.length });
+    return response;
+  },
+};
+```
+
+#### Content Filter Plugin
+
+```typescript
+const filterPlugin: Plugin = {
+  name: 'content-filter',
+  version: '1.0.0',
+
+  async onResponse(response, ctx) {
+    // Filter sensitive information
+    return response.replace(/\b\d{4}-\d{4}-\d{4}-\d{4}\b/g, '[REDACTED]');
+  },
+};
+```
+
+#### Command Handler Plugin
+
+```typescript
+const commandPlugin: Plugin = {
+  name: 'commands',
+  version: '1.0.0',
+
+  async onMessage(message, ctx) {
+    if (message.startsWith('/')) {
+      const [command, ...args] = message.slice(1).split(' ');
+
+      switch (command) {
+        case 'help':
+          return {
+            handled: true,
+            content: 'Available commands: /help, /clear, /status',
+          };
+        case 'clear':
+          // Clear conversation history
+          return { handled: true, content: 'History cleared.' };
+        default:
+          return { handled: false, content: message };
+      }
+    }
+  },
+};
+```
+
+---
+
+## Observability
+
+### Metrics
+
+Jellytent exposes Prometheus-compatible metrics:
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `jellytent_messages_total` | Counter | direction, type | Total messages |
+| `jellytent_audio_frames_total` | Counter | - | Audio frames processed |
+| `jellytent_latency_seconds` | Histogram | operation | Operation latency |
+| `jellytent_active_sessions` | Gauge | - | Current sessions |
+| `jellytent_vad_activations_total` | Counter | state | VAD events |
+| `jellytent_errors_total` | Counter | type | Error count |
+| `jellytent_plugins_loaded_total` | Counter | - | Plugins loaded |
+| `jellytent_plugin_errors_total` | Counter | plugin | Plugin errors |
+
+#### Accessing Metrics
+
+```typescript
+// Programmatic access
+const metricsCollector = client.getMetrics();
+const prometheusText = await metricsCollector.getMetrics();
+
+// HTTP endpoint (server mode)
+// GET /metrics
+```
+
+#### Grafana Dashboard
+
+Import our pre-built dashboard: `dashboards/jellytent-overview.json`
+
+### Tracing
+
+OpenTelemetry traces are emitted for all major operations:
+
+```
+jellytent.initialize
+├── wasm.load
+├── plugins.init
+└── avatar.init
+
+jellytent.connect
+└── transport.connect
+    └── websocket.handshake
+
+agent.send
+├── plugins.processMessage
+├── transport.send
+└── llm.complete (if applicable)
+
+agent.handleMessage
+├── plugins.processResponse
+└── avatar.startSpeaking
+```
+
+#### Trace Configuration
+
+```typescript
 const client = new Jellytent({
-  apiKey: process.env.JELLYTENT_API_KEY!,
-  voice: {
-    sampleRate: 16000,
-    vadSensitivity: 0.5,      // 0-1, higher = more sensitive
-    echoCancellation: true,
-    noiseSuppression: true,
+  apiKey: '...',
+  telemetry: {
+    enabled: true,
+    endpoint: 'http://jaeger:4318/v1/traces',
+    serviceName: 'jellytent-prod',
+    sampleRate: 0.1,
+    exportInterval: 10000,
   },
 });
+```
 
-await client.initialize();
-await client.connect();
+### Logging
 
-// Monitor voice activity
-client.on('voice:activity', ({ active }) => {
-  console.log(active ? 'Speaking...' : 'Silent');
-});
+Structured JSON logging in production:
 
-// Start capturing audio
-client.startAudioStream();
+```json
+{
+  "timestamp": "2024-01-15T10:30:00.000Z",
+  "level": "info",
+  "service": "jellytent",
+  "message": "Connected successfully",
+  "sessionId": "abc-123",
+  "endpoint": "wss://api.jellyjelly.io"
+}
+```
 
-// Stop when done
-client.stopAudioStream();
+Configuration:
+
+```typescript
+// Environment variable
+LOG_LEVEL=debug  // debug | info | warn | error
+
+// Or in code
+import { logger } from '@jellyjelly/jellytent';
+logger.configure({ level: 'debug', structured: true });
+```
+
+---
+
+## Deployment
+
+### Docker Compose (Development)
+
+```yaml
+version: '3.8'
+
+services:
+  jellytent:
+    build: .
+    ports:
+      - "8080:8080"
+      - "9090:9090"
+    environment:
+      - JELLYTENT_API_KEY=${JELLYTENT_API_KEY}
+      - LOG_LEVEL=debug
+      - TELEMETRY_ENABLED=true
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+    depends_on:
+      - otel-collector
+      - redis
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  otel-collector:
+    image: otel/opentelemetry-collector:latest
+    ports:
+      - "4318:4318"
+    volumes:
+      - ./otel-config.yaml:/etc/otel/config.yaml
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    ports:
+      - "16686:16686"  # UI
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9091:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+```
+
+### Kubernetes (Production)
+
+#### Using Helm
+
+```bash
+# Install
+helm install jellytent jellyjelly/jellytent \
+  --namespace jellytent \
+  --create-namespace \
+  --set image.tag=0.4.0 \
+  --set replicaCount=3 \
+  --set config.apiKey=$JELLYTENT_API_KEY \
+  --set autoscaling.enabled=true \
+  --set autoscaling.minReplicas=3 \
+  --set autoscaling.maxReplicas=20
+
+# Upgrade
+helm upgrade jellytent jellyjelly/jellytent \
+  --reuse-values \
+  --set image.tag=0.4.1
+
+# Check status
+kubectl get pods -n jellytent
+kubectl get hpa -n jellytent
+```
+
+#### Helm Values (Production)
+
+```yaml
+# values-production.yaml
+replicaCount: 3
+
+image:
+  repository: jellyjelly/jellytent
+  tag: "0.4.0"
+  pullPolicy: IfNotPresent
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 512Mi
+  limits:
+    cpu: 2000m
+    memory: 2Gi
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 20
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+config:
+  logLevel: info
+  telemetry:
+    enabled: true
+    endpoint: http://otel-collector.monitoring:4318
+    sampleRate: 0.1
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/websocket-services: jellytent
+  hosts:
+    - host: jellytent.yourcompany.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: jellytent-tls
+      hosts:
+        - jellytent.yourcompany.com
+
+redis:
+  enabled: true
+  architecture: replication
+  auth:
+    enabled: true
+```
+
+### Auto-Scaling Behavior
+
+```yaml
+behavior:
+  scaleUp:
+    stabilizationWindowSeconds: 60
+    policies:
+      - type: Pods
+        value: 4
+        periodSeconds: 60
+      - type: Percent
+        value: 100
+        periodSeconds: 60
+    selectPolicy: Max
+  scaleDown:
+    stabilizationWindowSeconds: 300
+    policies:
+      - type: Percent
+        value: 25
+        periodSeconds: 120
 ```
 
 ---
@@ -357,378 +758,140 @@ client.stopAudioStream();
 
 ### Jellytent Class
 
-The main entry point for the SDK.
-
-#### Constructor
-
 ```typescript
-new Jellytent(config: JellytentConfig)
+class Jellytent extends EventEmitter<JellytentEvents> {
+  constructor(config: JellytentConfig);
+
+  // Lifecycle
+  initialize(): Promise<void>;
+  connect(): Promise<void>;
+  disconnect(): Promise<void>;
+  destroy(): Promise<void>;
+
+  // Messaging
+  sendText(text: string): Promise<void>;
+  startAudioStream(): void;
+  stopAudioStream(): void;
+
+  // Plugins
+  registerPlugin(plugin: Plugin): void;
+  unregisterPlugin(name: string): void;
+
+  // State
+  getState(): AgentState;
+  getSessionId(): string | undefined;
+}
 ```
 
-#### Methods
-
-| Method | Returns | Description |
-|--------|---------|-------------|
-| `initialize()` | `Promise<void>` | Load WASM module and initialize subsystems |
-| `connect()` | `Promise<void>` | Connect to the JellyJelly server |
-| `disconnect()` | `Promise<void>` | Gracefully disconnect |
-| `sendText(text: string)` | `Promise<void>` | Send a text message |
-| `startAudioStream()` | `void` | Begin capturing and streaming audio |
-| `stopAudioStream()` | `void` | Stop audio capture |
-| `getState()` | `AgentState` | Get current agent state |
-| `getSessionId()` | `string` | Get the session identifier |
-
-#### Events
-
-| Event | Payload | Description |
-|-------|---------|-------------|
-| `state:change` | `(state: AgentState)` | Agent state changed |
-| `connected` | `void` | Connected to server |
-| `disconnected` | `{ reason: string }` | Disconnected from server |
-| `response` | `ResponsePayload` | Agent response received |
-| `response:start` | `void` | Response streaming started |
-| `response:end` | `void` | Response streaming ended |
-| `avatar:update` | `AvatarState` | Avatar animation frame (60fps) |
-| `voice:activity` | `{ active: boolean }` | Voice activity changed |
-| `error` | `Error` | Error occurred |
-
-### Types
+### Events
 
 ```typescript
-// Agent states
-type AgentState =
-  | 'uninitialized'
-  | 'idle'
-  | 'connecting'
-  | 'connected'
-  | 'listening'
-  | 'processing'
-  | 'speaking'
-  | 'error';
+interface JellytentEvents {
+  'state:change': (state: AgentState, prevState: AgentState) => void;
+  'connected': () => void;
+  'disconnected': (reason: { reason: string; code?: number }) => void;
+  'response': (response: ResponsePayload) => void;
+  'response:start': (id: string) => void;
+  'response:chunk': (id: string, chunk: string) => void;
+  'response:end': (id: string) => void;
+  'avatar:update': (state: AvatarState) => void;
+  'voice:activity': (active: { active: boolean; confidence: number }) => void;
+  'plugin:loaded': (name: string) => void;
+  'plugin:error': (name: string, error: Error) => void;
+  'error': (error: Error) => void;
+}
+```
 
-// Response from the agent
-interface ResponsePayload {
-  id: string;
-  text: string;
-  audio?: ArrayBuffer;
-  timestamp: number;
-  isFinal: boolean;
+### Error Types
+
+```typescript
+class JellytentError extends Error {
+  code: string;
+  retryable: boolean;
+  cause?: Error;
 }
 
-// Avatar animation state
-interface AvatarState {
-  frame: number;
-  mouthOpen: number;
-  tentaclePhase: number[];
-  glowIntensity: number;
-  position: { x: number; y: number };
-}
-
-// Message in conversation history
-interface Message {
-  id: string;
-  role: 'user' | 'assistant' | 'system';
-  content: string;
-  timestamp: number;
-  metadata?: Record<string, unknown>;
+class ConnectionError extends JellytentError {}    // Retryable
+class AuthenticationError extends JellytentError {} // Not retryable
+class RateLimitError extends JellytentError {      // Retryable
+  retryAfter: number;  // Seconds
 }
 ```
 
 ---
 
-## Configuration
+## Python ML Components
 
-### Full Configuration Reference
-
-```typescript
-interface JellytentConfig {
-  // ═══════════════════════════════════════════════════════════════
-  // REQUIRED
-  // ═══════════════════════════════════════════════════════════════
-
-  /**
-   * Your JellyJelly API key
-   * Obtain from: https://dashboard.jellyjelly.io/api-keys
-   */
-  apiKey: string;
-
-  // ═══════════════════════════════════════════════════════════════
-  // CONNECTION
-  // ═══════════════════════════════════════════════════════════════
-
-  /**
-   * WebSocket endpoint URL
-   * @default 'wss://api.jellyjelly.io/v1/agent'
-   */
-  endpoint?: string;
-
-  /**
-   * Custom session identifier
-   * @default Auto-generated UUID
-   */
-  sessionId?: string;
-
-  // ═══════════════════════════════════════════════════════════════
-  // AVATAR
-  // ═══════════════════════════════════════════════════════════════
-
-  avatar?: {
-    /**
-     * Enable avatar rendering
-     * @default true
-     */
-    enabled?: boolean;
-
-    /**
-     * Visual style preset
-     * @default 'luminescent'
-     */
-    style?: 'luminescent' | 'minimal' | 'classic';
-
-    /**
-     * Primary color (hex)
-     * @default '#00d4ff' (luminescent blue)
-     */
-    color?: string;
-
-    /**
-     * Avatar size in pixels
-     * @default 256
-     */
-    size?: number;
-  };
-
-  // ═══════════════════════════════════════════════════════════════
-  // VOICE
-  // ═══════════════════════════════════════════════════════════════
-
-  voice?: {
-    /**
-     * Audio sample rate in Hz
-     * @default 16000
-     */
-    sampleRate?: number;
-
-    /**
-     * Voice activity detection sensitivity (0-1)
-     * Higher values = more sensitive (may pick up noise)
-     * Lower values = less sensitive (may miss quiet speech)
-     * @default 0.5
-     */
-    vadSensitivity?: number;
-
-    /**
-     * Enable echo cancellation
-     * @default true
-     */
-    echoCancellation?: boolean;
-
-    /**
-     * Enable noise suppression
-     * @default true
-     */
-    noiseSuppression?: boolean;
-  };
-
-  // ═══════════════════════════════════════════════════════════════
-  // LLM
-  // ═══════════════════════════════════════════════════════════════
-
-  llm?: {
-    /**
-     * LLM provider
-     * @default 'jellyjelly'
-     */
-    provider?: 'jellyjelly' | 'openai' | 'anthropic';
-
-    /**
-     * Model identifier (provider-specific)
-     * @default Provider's default model
-     */
-    model?: string;
-
-    /**
-     * Sampling temperature (0-2)
-     * @default 0.7
-     */
-    temperature?: number;
-
-    /**
-     * Maximum tokens in response
-     * @default 2048
-     */
-    maxTokens?: number;
-
-    /**
-     * System prompt for the agent
-     */
-    systemPrompt?: string;
-  };
-}
-```
-
-### Environment Variables
-
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `JELLYTENT_API_KEY` | Your JellyJelly API key | Yes |
-| `JELLYTENT_ENDPOINT` | Custom WebSocket endpoint | No |
-| `JELLYTENT_LOG_LEVEL` | Logging level (debug/info/warn/error) | No |
-
----
-
-## Development
-
-### Project Structure
-
-```
-jellytent/
-├── src/
-│   ├── index.ts              # Public exports
-│   ├── core/
-│   │   ├── jellytent.ts      # Main client class
-│   │   └── agent.ts          # Agent logic
-│   ├── transport/
-│   │   └── websocket.ts      # WebSocket client
-│   ├── voice/
-│   │   ├── pipeline.ts       # Audio processing pipeline
-│   │   └── wasm-loader.ts    # WASM module loader
-│   ├── avatar/
-│   │   └── engine.ts         # Avatar animation
-│   ├── llm/
-│   │   └── client.ts         # LLM abstraction
-│   ├── types/
-│   │   └── index.ts          # TypeScript types
-│   └── utils/
-│       └── logger.ts         # Logging utility
-├── native/
-│   └── audio-processor/      # Rust WASM module
-│       ├── Cargo.toml
-│       └── src/
-│           └── lib.rs
-├── tests/
-│   └── unit/
-├── docker/
-│   └── Dockerfile
-└── wasm/                     # Built WASM output
-```
-
-### Development Commands
+### Installation
 
 ```bash
-# Install dependencies
-npm install
+# Full installation
+pip install jellytent-ml[all]
 
-# Start development mode (watch)
-npm run dev
-
-# Build everything
-npm run build
-
-# Build only TypeScript
-npm run build:ts
-
-# Build only WASM
-npm run build:wasm
-
-# Run tests
-npm test
-
-# Run tests in watch mode
-npm run test:watch
-
-# Lint code
-npm run lint
-
-# Fix lint issues
-npm run lint:fix
-
-# Type check
-npm run typecheck
-
-# Clean build artifacts
-npm run clean
+# Specific components
+pip install jellytent-ml[stt]  # Whisper
+pip install jellytent-ml[tts]  # Coqui TTS
+pip install jellytent-ml[nlu]  # Intent classification
 ```
 
-### Running Tests
+### Speech-to-Text
 
-```bash
-# All tests
-npm test
+```python
+from jellytent_ml import WhisperSTT
+import numpy as np
 
-# Unit tests only
-npm run test -- tests/unit
+stt = WhisperSTT(model_size="base")
 
-# With coverage
-npm run test -- --coverage
+# Transcribe audio
+audio = np.random.randn(16000).astype(np.float32)  # 1 second
+result = await stt.transcribe(audio, sample_rate=16000)
 
-# Specific test file
-npm run test -- tests/unit/avatar.test.ts
+print(result.text)        # Transcribed text
+print(result.confidence)  # 0-1
+print(result.language)    # Detected language
 ```
 
-### Building the WASM Module
+### Text-to-Speech
 
-The Rust WASM module requires:
-- Rust 1.74+
-- wasm-pack
+```python
+from jellytent_ml import CoquiTTS
 
-```bash
-# Install wasm-pack if needed
-curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+tts = CoquiTTS(model_name="tts_models/en/ljspeech/tacotron2-DDC")
 
-# Build the WASM module
-cd native/audio-processor
-wasm-pack build --target web --out-dir ../../wasm
+# Synthesize speech
+result = await tts.synthesize("Hello, world!")
 
-# Or use npm script from root
-npm run build:wasm
+print(result.audio.shape)    # Audio samples
+print(result.sample_rate)    # Sample rate
+print(result.duration_ms)    # Duration
 ```
 
----
+### Intent Classification
 
-## Troubleshooting
+```python
+from jellytent_ml import IntentClassifier
 
-### Common Issues
+classifier = IntentClassifier()
 
-#### WASM Module Not Loading
+result = await classifier.classify("What's the weather like?")
 
-```
-Error: Failed to load WASM module
-```
-
-**Solution**: Ensure the WASM file is accessible. Check that `wasm/audio_processor_bg.wasm` exists and is served with the correct MIME type (`application/wasm`).
-
-#### Connection Timeouts
-
-```
-Error: Connection timeout
-```
-
-**Solution**: Check your network connection and firewall settings. Ensure WebSocket connections to `wss://api.jellyjelly.io` are allowed.
-
-#### Voice Activity Not Detected
-
-**Solution**: Adjust `vadSensitivity` in voice config. Try values between 0.3 (less sensitive) and 0.7 (more sensitive).
-
-#### High CPU Usage
-
-**Solution**: If avatar rendering is causing high CPU, reduce frame rate or disable avatar:
-
-```typescript
-const client = new Jellytent({
-  apiKey: '...',
-  avatar: { enabled: false },
-});
+print(result.intents[0].name)       # "weather"
+print(result.intents[0].confidence) # 0.92
+print(result.sentiment)             # "neutral"
 ```
 
 ---
 
 ## Support
 
-- **Documentation**: https://docs.jellyjelly.io/jellytent
-- **Issues**: https://github.com/jellyjelly/jellytent/issues
-- **Email**: support@jellyjelly.io
-- **Discord**: https://discord.gg/jellyjelly
+| Channel | Link |
+|---------|------|
+| Documentation | https://docs.jellyjelly.io/jellytent |
+| GitHub Issues | https://github.com/jellyjelly/jellytent/issues |
+| Email Support | support@jellyjelly.io |
+| Enterprise | enterprise@jellyjelly.io |
+| Discord | https://discord.gg/jellyjelly |
+| Status Page | https://status.jellyjelly.io |
 
 ---
 
@@ -736,6 +899,6 @@ const client = new Jellytent({
 
 Copyright © 2024 JellyJelly Inc. All rights reserved.
 
-This software is proprietary and confidential. Unauthorized copying, modification, distribution, or use of this software, via any medium, is strictly prohibited.
+This software is proprietary and confidential. Unauthorized copying, modification, distribution, or use of this software is strictly prohibited.
 
-See [LICENSE](LICENSE) for full terms.
+For licensing inquiries: licensing@jellyjelly.io

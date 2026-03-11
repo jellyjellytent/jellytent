@@ -1,7 +1,7 @@
 {
   "name": "@jellyjelly/jellytent",
-  "version": "0.3.0",
-  "description": "AI video chat agent for JellyJelly",
+  "version": "0.4.0",
+  "description": "Enterprise AI video chat agent for JellyJelly",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
@@ -14,6 +14,10 @@
     "./avatar": {
       "import": "./dist/avatar/index.mjs",
       "require": "./dist/avatar/index.js"
+    },
+    "./plugins": {
+      "import": "./dist/plugins/index.mjs",
+      "require": "./dist/plugins/index.js"
     }
   },
   "files": [
@@ -26,12 +30,16 @@
     "build:wasm": "cd native/audio-processor && wasm-pack build --target web --out-dir ../../wasm",
     "dev": "tsup --watch",
     "test": "vitest run",
+    "test:unit": "vitest run tests/unit",
+    "test:integration": "vitest run tests/integration",
+    "test:e2e": "playwright test",
     "test:watch": "vitest",
-    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:coverage": "vitest run --coverage",
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist wasm"
+    "clean": "rm -rf dist wasm coverage",
+    "prepublishOnly": "npm run build"
   },
   "keywords": [
     "ai",
@@ -41,7 +49,8 @@
     "websocket",
     "voice",
     "avatar",
-    "wasm"
+    "wasm",
+    "enterprise"
   ],
   "author": "JellyJelly Inc.",
   "license": "UNLICENSED",
@@ -50,17 +59,27 @@
     "node": ">=18.0.0"
   },
   "devDependencies": {
+    "@opentelemetry/api": "^1.7.0",
+    "@playwright/test": "^1.40.0",
     "@types/node": "^20.10.0",
     "@types/ws": "^8.5.10",
     "@typescript-eslint/eslint-plugin": "^6.13.0",
     "@typescript-eslint/parser": "^6.13.0",
+    "@vitest/coverage-v8": "^1.0.0",
     "eslint": "^8.54.0",
+    "eslint-plugin-import": "^2.29.0",
     "tsup": "^8.0.1",
     "typescript": "^5.3.2",
     "vitest": "^1.0.0"
   },
   "dependencies": {
+    "@opentelemetry/exporter-prometheus": "^0.45.0",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.45.0",
+    "@opentelemetry/instrumentation": "^0.45.0",
+    "@opentelemetry/sdk-metrics": "^1.18.0",
+    "@opentelemetry/sdk-trace-base": "^1.18.0",
     "eventemitter3": "^5.0.1",
+    "prom-client": "^15.1.0",
     "uuid": "^9.0.1",
     "ws": "^8.14.2",
     "zod": "^3.22.4"

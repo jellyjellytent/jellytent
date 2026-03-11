@@ -1,0 +1,22 @@
+apiVersion: v2
+name: jellytent
+description: AI-powered video chat agent for JellyJelly
+type: application
+version: 0.4.0
+appVersion: "0.4.0"
+keywords:
+  - ai
+  - video-chat
+  - agent
+  - websocket
+home: https://github.com/jellyjelly/jellytent
+sources:
+  - https://github.com/jellyjelly/jellytent
+maintainers:
+  - name: JellyJelly Platform Team
+    email: platform@jellyjelly.io
+dependencies:
+  - name: redis
+    version: "18.x.x"
+    repository: https://charts.bitnami.com/bitnami
+    condition: redis.enabled

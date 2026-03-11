@@ -19,8 +19,11 @@
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
     "exactOptionalPropertyTypes": true,
-    "noUncheckedIndexedAccess": true
+    "noUncheckedIndexedAccess": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "allowUnusedLabels": false,
+    "allowUnreachableCode": false
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "tests", "wasm", "native"]
+  "exclude": ["node_modules", "dist", "tests", "wasm", "native", "python"]
 }

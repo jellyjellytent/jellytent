@@ -18,10 +18,21 @@ const LOG_LEVELS: Record<LogLevel, number> = {
   error: 3,
 };
 
-class Logger {
+export class Logger {
   private level: LogLevel = 'info';
-  private prefix = 'jellytent';
-  private structured = false;
+  private prefix: string;
+  private structured: boolean;
+  private contextData: LogContext;
+
+  constructor(
+    prefix = 'jellytent',
+    options: { level?: LogLevel; structured?: boolean; context?: LogContext } = {},
+  ) {
+    this.prefix = prefix;
+    this.level = options.level ?? (process.env['LOG_LEVEL'] as LogLevel) ?? 'info';
+    this.structured = options.structured ?? process.env['NODE_ENV'] === 'production';
+    this.contextData = options.context ?? {};
+  }
 
   configure(options: { level?: LogLevel; structured?: boolean }): void {
     if (options.level) this.level = options.level;
@@ -33,16 +44,22 @@ class Logger {
   }
 
   private formatEntry(entry: LogEntry): string {
+    const context = { ...this.contextData, ...entry.context };
+
     if (this.structured) {
       return JSON.stringify({
-        ...entry,
+        timestamp: entry.timestamp,
+        level: entry.level,
         service: this.prefix,
+        message: entry.message,
+        ...context,
       });
     }
 
-    const time = entry.timestamp;
-    const ctx = entry.context ? ` ${JSON.stringify(entry.context)}` : '';
-    return `[${this.prefix}] ${time} ${entry.level.toUpperCase()} ${entry.message}${ctx}`;
+    const time = entry.timestamp.split('T')[1]?.slice(0, 12) ?? entry.timestamp;
+    const levelStr = entry.level.toUpperCase().padEnd(5);
+    const ctx = Object.keys(context).length > 0 ? ` ${JSON.stringify(context)}` : '';
+    return `${time} ${levelStr} [${this.prefix}] ${entry.message}${ctx}`;
   }
 
   private log(level: LogLevel, message: string, context?: LogContext): void {
@@ -89,13 +106,23 @@ class Logger {
     this.log('error', message, context);
   }
 
-  child(prefix: string): Logger {
-    const child = new Logger();
-    child.prefix = `${this.prefix}:${prefix}`;
-    child.level = this.level;
-    child.structured = this.structured;
-    return child;
+  child(name: string, context?: LogContext): Logger {
+    return new Logger(`${this.prefix}:${name}`, {
+      level: this.level,
+      structured: this.structured,
+      context: { ...this.contextData, ...context },
+    });
+  }
+
+  withContext(context: LogContext): Logger {
+    return new Logger(this.prefix, {
+      level: this.level,
+      structured: this.structured,
+      context: { ...this.contextData, ...context },
+    });
   }
 }
 
 export const logger = new Logger();
+
+export type { LogLevel, LogContext };
