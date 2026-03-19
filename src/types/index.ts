@@ -17,10 +17,12 @@ export type AgentConfig = z.infer<typeof AgentConfigSchema>;
 
 export const AvatarConfigSchema = z.object({
   enabled: z.boolean().default(true),
-  style: z.enum(['luminescent', 'minimal', 'classic']).default('luminescent'),
+  style: z.enum(['luminescent', 'minimal', 'classic', 'expressive']).default('luminescent'),
   color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
   size: z.number().positive().default(256),
   frameRate: z.number().int().min(30).max(120).default(60),
+  // NEW: Emotion-reactive avatar
+  emotionReactive: z.boolean().default(false),
 });
 
 export type AvatarConfig = z.infer<typeof AvatarConfigSchema>;
@@ -31,14 +33,14 @@ export const VoiceConfigSchema = z.object({
   vadSensitivity: z.number().min(0).max(1).default(0.5),
   echoCancellation: z.boolean().default(true),
   noiseSuppression: z.boolean().default(true),
-  sttProvider: z.enum(['whisper', 'deepgram', 'custom']).default('whisper'),
-  ttsProvider: z.enum(['coqui', 'elevenlabs', 'custom']).default('coqui'),
+  sttProvider: z.enum(['whisper', 'deepgram', 'assemblyai', 'custom']).default('whisper'),
+  ttsProvider: z.enum(['coqui', 'elevenlabs', 'playht', 'custom']).default('coqui'),
 });
 
 export type VoiceConfig = z.infer<typeof VoiceConfigSchema>;
 
 export const LLMConfigSchema = z.object({
-  provider: z.enum(['jellyjelly', 'openai', 'anthropic']).default('jellyjelly'),
+  provider: z.enum(['jellyjelly', 'openai', 'anthropic', 'google']).default('jellyjelly'),
   model: z.string().optional(),
   temperature: z.number().min(0).max(2).default(0.7),
   maxTokens: z.number().int().positive().default(2048),
@@ -48,9 +50,24 @@ export const LLMConfigSchema = z.object({
     description: z.string(),
     parameters: z.record(z.unknown()),
   })).optional(),
+  // NEW: Parallel tool execution
+  parallelToolCalls: z.boolean().default(true),
 });
 
 export type LLMConfig = z.infer<typeof LLMConfigSchema>;
+
+// NEW: Memory configuration
+export const MemoryConfigSchema = z.object({
+  enabled: z.boolean().default(false),
+  provider: z.enum(['local', 'pinecone', 'weaviate', 'qdrant']).default('local'),
+  maxHistory: z.number().int().positive().default(100),
+  embeddingModel: z.string().default('text-embedding-3-small'),
+  // TODO: Add more configuration options
+  // chunkSize: z.number().int().positive().default(512),
+  // overlapSize: z.number().int().nonnegative().default(50),
+});
+
+export type MemoryConfig = z.infer<typeof MemoryConfigSchema>;
 
 export const TelemetryConfigSchema = z.object({
   enabled: z.boolean().default(false),
@@ -69,10 +86,18 @@ export type TelemetryConfig = z.infer<typeof TelemetryConfigSchema>;
 export interface Message {
   id: string;
   role: 'user' | 'assistant' | 'system' | 'tool';
-  content: string;
+  content: string | MessageContent[];  // NEW: Multi-modal support
   timestamp: number;
   metadata?: MessageMetadata;
 }
+
+// NEW: Multi-modal content
+export type MessageContent =
+  | { type: 'text'; text: string }
+  | { type: 'image'; url: string; alt?: string }
+  | { type: 'audio'; url: string; duration?: number };
+  // TODO: Add video support
+  // | { type: 'video'; url: string; duration?: number };
 
 export interface MessageMetadata {
   audioUrl?: string;
@@ -81,6 +106,8 @@ export interface MessageMetadata {
   model?: string;
   toolCalls?: ToolCall[];
   pluginSource?: string;
+  // NEW: Emotion data
+  emotion?: EmotionData;
 }
 
 export interface ToolCall {
@@ -88,6 +115,24 @@ export interface ToolCall {
   name: string;
   arguments: Record<string, unknown>;
 }
+
+// NEW: Emotion detection types
+export interface EmotionData {
+  primary: Emotion;
+  confidence: number;
+  secondary?: Emotion;
+  valence: number;  // -1 to 1 (negative to positive)
+  arousal: number;  // 0 to 1 (calm to excited)
+}
+
+export type Emotion =
+  | 'neutral'
+  | 'happy'
+  | 'sad'
+  | 'angry'
+  | 'fearful'
+  | 'surprised'
+  | 'disgusted';
 
 // ============================================================================
 // State Types
@@ -118,6 +163,19 @@ export interface ResponseMetadata {
   model?: string;
   tokens?: number;
   processingTime?: number;
+  emotion?: EmotionData;
+  // NEW: Memory context
+  memoryContext?: MemoryContext;
+}
+
+// NEW: Memory context in responses
+export interface MemoryContext {
+  relevantMemories: Array<{
+    content: string;
+    timestamp: number;
+    similarity: number;
+  }>;
+  summarizedHistory?: string;
 }
 
 export interface AvatarState {
@@ -128,6 +186,9 @@ export interface AvatarState {
   pulsePhase: number;
   position: { x: number; y: number };
   rotation: number;
+  // NEW: Emotion state
+  emotion?: Emotion;
+  emotionIntensity?: number;
 }
 
 // ============================================================================
@@ -137,6 +198,7 @@ export interface AvatarState {
 export type TransportMessageType =
   | 'text'
   | 'audio'
+  | 'image'  // NEW
   | 'control'
   | 'ping'
   | 'pong'
@@ -194,5 +256,13 @@ export class RateLimitError extends JellytentError {
   ) {
     super(message, 'RATE_LIMIT_ERROR', true);
     this.name = 'RateLimitError';
+  }
+}
+
+// NEW: Memory errors
+export class MemoryError extends JellytentError {
+  constructor(message: string, cause?: Error) {
+    super(message, 'MEMORY_ERROR', true, cause);
+    this.name = 'MemoryError';
   }
 }

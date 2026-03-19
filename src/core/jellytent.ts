@@ -5,6 +5,7 @@ import { AvatarEngine } from '../avatar/engine';
 import { VoicePipeline } from '../voice/pipeline';
 import { LLMClient } from '../llm/client';
 import { PluginManager } from '../plugins/manager';
+import { MemoryManager } from '../memory/manager';
 import { MetricsCollector } from '../observability/metrics';
 import { TracingProvider, createSpan } from '../observability/tracing';
 import { loadWasmModule } from '../voice/wasm-loader';
@@ -15,11 +16,16 @@ import {
   AvatarConfigSchema,
   VoiceConfigSchema,
   LLMConfigSchema,
+  MemoryConfigSchema,
   TelemetryConfigSchema,
   JellytentError,
+  EmotionData,
 } from '../types';
 import { Plugin } from '../plugins/types';
 import { logger } from '../utils/logger';
+
+// TODO: Import once stable
+// import { EmotionDetector } from '../experimental/emotion';
 
 const JellytentConfigSchema = z.object({
   apiKey: z.string().min(1, 'API key is required'),
@@ -28,6 +34,7 @@ const JellytentConfigSchema = z.object({
   avatar: AvatarConfigSchema.optional(),
   voice: VoiceConfigSchema.optional(),
   llm: LLMConfigSchema.optional(),
+  memory: MemoryConfigSchema.optional(),  // NEW
   telemetry: TelemetryConfigSchema.optional(),
 });
 
@@ -43,6 +50,8 @@ export interface JellytentEvents {
   'response:end': (id: string) => void;
   'avatar:update': (state: AvatarState) => void;
   'voice:activity': (active: { active: boolean; confidence: number }) => void;
+  'emotion:detected': (emotion: EmotionData) => void;  // NEW
+  'memory:updated': () => void;  // NEW
   'plugin:loaded': (name: string) => void;
   'plugin:error': (name: string, error: Error) => void;
   'error': (error: Error) => void;
@@ -55,8 +64,11 @@ export class Jellytent extends EventEmitter<JellytentEvents> {
   private voicePipeline: VoicePipeline | null = null;
   private llmClient: LLMClient | null = null;
   private pluginManager: PluginManager | null = null;
+  private memoryManager: MemoryManager | null = null;  // NEW
   private metrics: MetricsCollector | null = null;
   private tracing: TracingProvider | null = null;
+  // TODO: Enable once stable
+  // private emotionDetector: EmotionDetector | null = null;
   private initialized = false;
   private currentState: AgentState = 'uninitialized';
 
@@ -110,6 +122,19 @@ export class Jellytent extends EventEmitter<JellytentEvents> {
 
       // Initialize LLM client
       this.llmClient = new LLMClient(this.config.llm ?? {});
+
+      // NEW: Initialize memory manager
+      if (this.config.memory?.enabled) {
+        this.memoryManager = new MemoryManager(this.config.memory);
+        await this.memoryManager.initialize();
+        logger.info('Memory manager initialized');
+      }
+
+      // TODO: Initialize emotion detector when stable
+      // if (this.config.avatar?.emotionReactive) {
+      //   this.emotionDetector = new EmotionDetector();
+      //   await this.emotionDetector.initialize();
+      // }
 
       // Create agent
       this.agent = new Agent({
@@ -165,12 +190,29 @@ export class Jellytent extends EventEmitter<JellytentEvents> {
 
     this.agent.on('message', async (message) => {
       // Run through plugin pipeline
-      let processedContent = message.content;
+      let processedContent = message.content as string;
 
       if (this.pluginManager) {
-        const result = await this.pluginManager.processResponse(message.content);
+        const result = await this.pluginManager.processResponse(processedContent);
         processedContent = result.content;
       }
+
+      // NEW: Store in memory
+      if (this.memoryManager) {
+        await this.memoryManager.addMessage({
+          role: 'assistant',
+          content: processedContent,
+          timestamp: message.timestamp,
+        });
+        this.emit('memory:updated');
+      }
+
+      // TODO: Detect emotion in response
+      // const emotion = await this.emotionDetector?.detect(processedContent);
+      // if (emotion) {
+      //   this.emit('emotion:detected', emotion);
+      //   this.avatar?.setEmotion(emotion);
+      // }
 
       this.emit('response', {
         id: message.id,
@@ -200,6 +242,23 @@ export class Jellytent extends EventEmitter<JellytentEvents> {
 
     const startTime = Date.now();
 
+    // NEW: Retrieve relevant memories
+    let memoryContext: string | undefined;
+    if (this.memoryManager) {
+      const memories = await this.memoryManager.search(text, 3);
+      if (memories.length > 0) {
+        memoryContext = memories.map(m => m.content).join('\n');
+        logger.debug('Retrieved memory context', { count: memories.length });
+      }
+
+      // Store user message
+      await this.memoryManager.addMessage({
+        role: 'user',
+        content: text,
+        timestamp: Date.now(),
+      });
+    }
+
     // Process through plugins
     if (this.pluginManager) {
       const result = await this.pluginManager.processMessage(text);
@@ -209,9 +268,32 @@ export class Jellytent extends EventEmitter<JellytentEvents> {
       text = result.content;
     }
 
+    // TODO: Prepend memory context to message
+    // if (memoryContext) {
+    //   text = `[Previous context: ${memoryContext}]\n\n${text}`;
+    // }
+
     await this.agent!.send(text);
 
     this.metrics?.recordLatency('message_send', Date.now() - startTime);
+  }
+
+  // NEW: Send image (WIP)
+  async sendImage(imageUrl: string, prompt?: string): Promise<void> {
+    this.ensureInitialized();
+
+    // TODO: Implement multi-modal message sending
+    // This is a placeholder - actual implementation needs:
+    // 1. Image validation
+    // 2. Resize/compression if needed
+    // 3. Base64 encoding or URL handling
+    // 4. Multi-modal message format
+
+    logger.warn('sendImage is not fully implemented yet');
+
+    if (prompt) {
+      await this.sendText(`[Image: ${imageUrl}] ${prompt}`);
+    }
   }
 
   startAudioStream(): void {
@@ -246,6 +328,21 @@ export class Jellytent extends EventEmitter<JellytentEvents> {
     this.pluginManager!.unregister(name);
   }
 
+  // NEW: Memory management methods
+  async clearMemory(): Promise<void> {
+    if (this.memoryManager) {
+      await this.memoryManager.clear();
+      logger.info('Memory cleared');
+    }
+  }
+
+  async getMemoryStats(): Promise<{ messageCount: number; oldestTimestamp?: number }> {
+    if (!this.memoryManager) {
+      return { messageCount: 0 };
+    }
+    return this.memoryManager.getStats();
+  }
+
   getState(): AgentState {
     return this.currentState;
   }
@@ -275,6 +372,7 @@ export class Jellytent extends EventEmitter<JellytentEvents> {
     await this.disconnect();
     this.avatar?.destroy();
     this.voicePipeline?.stop();
+    await this.memoryManager?.close();
     await this.tracing?.shutdown();
     this.removeAllListeners();
 
@@ -283,6 +381,7 @@ export class Jellytent extends EventEmitter<JellytentEvents> {
     this.voicePipeline = null;
     this.llmClient = null;
     this.pluginManager = null;
+    this.memoryManager = null;
     this.initialized = false;
 
     logger.info('Jellytent destroyed');

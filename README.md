@@ -5,107 +5,160 @@
 <h1 align="center">Jellytent</h1>
 
 <p align="center">
-  <strong>Enterprise-grade AI video chat agent for JellyJelly</strong>
+  <strong>Next-generation AI video chat agent for JellyJelly</strong>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-0.4.0-blue.svg" alt="Version" />
+  <img src="https://img.shields.io/badge/version-0.5.0--beta.1-orange.svg" alt="Version" />
   <img src="https://img.shields.io/badge/typescript-5.3-blue.svg" alt="TypeScript" />
   <img src="https://img.shields.io/badge/rust-1.74-orange.svg" alt="Rust" />
   <img src="https://img.shields.io/badge/python-3.11-green.svg" alt="Python" />
   <img src="https://img.shields.io/badge/license-proprietary-red.svg" alt="License" />
   <img src="https://img.shields.io/badge/build-passing-brightgreen.svg" alt="Build" />
-  <img src="https://img.shields.io/badge/coverage-84%25-green.svg" alt="Coverage" />
-  <img src="https://img.shields.io/badge/kubernetes-ready-326CE5.svg" alt="Kubernetes" />
+  <img src="https://img.shields.io/badge/coverage-81%25-green.svg" alt="Coverage" />
+  <img src="https://img.shields.io/badge/status-beta-yellow.svg" alt="Status" />
 </p>
 
 <p align="center">
   <a href="#overview">Overview</a> •
-  <a href="#features">Features</a> •
-  <a href="#architecture">Architecture</a> •
-  <a href="#installation">Installation</a> •
-  <a href="#quick-start">Quick Start</a> •
-  <a href="#plugin-system">Plugins</a> •
-  <a href="#observability">Observability</a> •
-  <a href="#deployment">Deployment</a> •
-  <a href="#api-reference">API</a>
+  <a href="#whats-new">What's New</a> •
+  <a href="#memory-system">Memory</a> •
+  <a href="#multi-modal">Multi-Modal</a> •
+  <a href="#experimental">Experimental</a> •
+  <a href="#migration">Migration</a> •
+  <a href="#roadmap">Roadmap</a>
 </p>
+
+---
+
+> ⚠️ **Beta Release**: This is a pre-release version. APIs may change. Not recommended for production use.
 
 ---
 
 ## Overview
 
-Jellytent is a production-ready, enterprise-grade real-time video chat agent featuring an interactive jellyfish avatar. Version 0.4.0 introduces a powerful plugin system, comprehensive observability, Python ML components, and Kubernetes-native deployment.
+Jellytent 0.5.0 introduces groundbreaking features including **conversation memory with semantic search**, **multi-modal input support**, and **emotion-reactive avatars**. This release lays the foundation for more intelligent, context-aware, and natural AI interactions.
 
-Built for scale, Jellytent combines:
-- **TypeScript** for application orchestration
-- **Rust/WebAssembly** for real-time audio processing
-- **Python** for ML-powered speech recognition and synthesis
+### Headline Features
 
-### What's New in v0.4.0
-
-- **Plugin System**: Extend functionality with custom plugins
-- **Observability**: OpenTelemetry tracing + Prometheus metrics
-- **Python ML**: Whisper STT, Coqui TTS, intent classification
-- **Kubernetes**: Helm charts with auto-scaling
-- **Enhanced Types**: Comprehensive error handling with retry support
+| Feature | Status | Description |
+|---------|--------|-------------|
+| **Memory System** | 🚧 Beta | Long-term conversation memory with RAG |
+| **Multi-Modal Input** | 🚧 Beta | Image and (soon) video input support |
+| **Emotion Detection** | 🧪 Experimental | Real-time sentiment and emotion analysis |
+| **WebRTC Transport** | 🧪 Experimental | Lower latency alternative to WebSocket |
+| **Parallel Tool Calls** | ✅ Stable | Execute multiple tools simultaneously |
 
 ---
 
-## Features
+## What's New in v0.5.0
 
-### Feature Matrix
+### Memory System (Beta)
 
-| Category | Feature | Description | Status |
-|----------|---------|-------------|--------|
-| **Core** | Real-time Voice | Full-duplex audio streaming | ✅ Stable |
-| | WASM Audio DSP | Rust-compiled processing | ✅ Stable |
-| | Animated Avatar | 60fps jellyfish animation | ✅ Stable |
-| | WebSocket Transport | Auto-reconnect with backoff | ✅ Stable |
-| | LLM Integration | Multi-provider support | ✅ Stable |
-| **Enterprise** | Plugin System | Extensible architecture | ✅ Stable |
-| | Observability | Tracing + Metrics | ✅ Stable |
-| | Python ML | STT/TTS/NLU | ✅ Stable |
-| | Kubernetes | Helm + HPA | ✅ Stable |
-| | Multi-tenancy | Session isolation | ✅ Stable |
+Your Jellytent agent can now **remember previous conversations**. The memory system provides:
 
-### Audio Processing Pipeline
+- **Conversation Persistence**: Messages stored across sessions
+- **Semantic Search**: Find relevant past context using embeddings
+- **Automatic Context**: Relevant memories injected into prompts
+- **Multiple Backends**: Local, Pinecone, Weaviate, Qdrant (coming soon)
 
+```typescript
+const client = new Jellytent({
+  apiKey: process.env.JELLYTENT_API_KEY!,
+  memory: {
+    enabled: true,
+    provider: 'local',      // 'pinecone', 'weaviate', 'qdrant' coming
+    maxHistory: 100,
+    embeddingModel: 'text-embedding-3-small',
+  },
+});
+
+await client.initialize();
+await client.connect();
+
+// The agent now has context from previous conversations!
+await client.sendText('What did we discuss last time?');
+
+// Memory stats
+const stats = await client.getMemoryStats();
+console.log(`Stored messages: ${stats.messageCount}`);
+
+// Clear memory if needed
+await client.clearMemory();
 ```
-┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
-│   Capture   │───▶│    WASM     │───▶│     VAD     │───▶│   Python    │
-│   (16kHz)   │    │  Denoise    │    │  Detection  │    │   Whisper   │
-└─────────────┘    └─────────────┘    └─────────────┘    └──────┬──────┘
-                                                                │
-                   ┌─────────────┐    ┌─────────────┐    ┌──────▼──────┐
-                   │   Avatar    │◀───│   Coqui     │◀───│     LLM     │
-                   │   Animate   │    │    TTS      │    │   Gateway   │
-                   └─────────────┘    └─────────────┘    └─────────────┘
+
+### Multi-Modal Input (Beta)
+
+Send images alongside text for visual understanding:
+
+```typescript
+// Send image with prompt
+await client.sendImage(
+  'https://example.com/chart.png',
+  'What does this chart show?'
+);
+
+// Or use the low-level API (coming soon)
+await client.sendMultimodal([
+  { type: 'text', text: 'Compare these two images:' },
+  { type: 'image', url: 'https://example.com/image1.png' },
+  { type: 'image', url: 'https://example.com/image2.png' },
+]);
 ```
 
-### Performance Benchmarks
+### Emotion Detection (Experimental)
 
-**Audio Processing (WASM)**
+Real-time emotion analysis from text and voice:
 
-| Operation | Latency (p50) | Latency (p99) |
-|-----------|---------------|---------------|
-| VAD (16ms frame) | 0.1ms | 0.3ms |
-| Noise reduction | 0.3ms | 0.5ms |
-| Resampling | 0.15ms | 0.25ms |
+```typescript
+client.on('emotion:detected', (emotion) => {
+  console.log(`Detected: ${emotion.primary}`);  // 'happy', 'sad', etc.
+  console.log(`Confidence: ${emotion.confidence}`);
+  console.log(`Valence: ${emotion.valence}`);   // -1 to 1
+  console.log(`Arousal: ${emotion.arousal}`);   // 0 to 1
+});
 
-**End-to-End Latency**
+// Enable emotion-reactive avatar
+const client = new Jellytent({
+  apiKey: '...',
+  avatar: {
+    enabled: true,
+    style: 'expressive',      // New style!
+    emotionReactive: true,    // Avatar responds to emotions
+  },
+});
+```
 
-| Operation | Latency (p50) | Latency (p99) |
-|-----------|---------------|---------------|
-| WebSocket connect | 45ms | 120ms |
-| Text message round-trip | 180ms | 450ms |
-| Voice message round-trip | 320ms | 680ms |
+### WebRTC Transport (Experimental)
+
+Lower latency audio/video streaming:
+
+```typescript
+import { WebRTCTransport } from '@jellyjelly/jellytent/experimental';
+
+// Note: API is unstable and may change
+const transport = new WebRTCTransport({
+  signalingUrl: 'wss://signal.jellyjelly.io',
+  apiKey: process.env.JELLYTENT_API_KEY!,
+  sessionId: 'my-session',
+  iceServers: [
+    { urls: 'stun:stun.jellyjelly.io:3478' },
+    {
+      urls: 'turn:turn.jellyjelly.io:3478',
+      username: 'user',
+      credential: 'pass',
+    },
+  ],
+});
+
+await transport.connect();
+```
 
 ---
 
 ## Architecture
 
-### System Overview
+### System Overview (v0.5.0)
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────┐
@@ -119,765 +172,482 @@ Built for scale, Jellytent combines:
 │  │   │   Avatar   │  │   Voice    │  │    LLM     │  │  Plugins   │    │  │
 │  │   │   Engine   │  │  Pipeline  │  │   Client   │  │  Manager   │    │  │
 │  │   │            │  │            │  │            │  │            │    │  │
-│  │   │  60fps     │  │  Capture   │  │  OpenAI    │  │  Hooks     │    │  │
-│  │   │  Render    │  │  Process   │  │  Anthropic │  │  Lifecycle │    │  │
-│  │   │  Animate   │  │  Stream    │  │  JellyJelly│  │  Context   │    │  │
+│  │   │  Emotion   │  │  Emotion   │  │  Parallel  │  │  Hooks     │    │  │
+│  │   │  Reactive  │  │  Detection │  │  Tools     │  │  Lifecycle │    │  │
+│  │   │  ▲ NEW     │  │  ▲ NEW     │  │  ▲ NEW     │  │            │    │  │
 │  │   └────────────┘  └─────┬──────┘  └────────────┘  └────────────┘    │  │
 │  │                         │                                            │  │
-│  │                  ┌──────┴──────┐                                     │  │
-│  │                  │  WASM Core  │  ◀── Rust                          │  │
-│  │                  │             │                                     │  │
-│  │                  │  VAD        │                                     │  │
-│  │                  │  Denoise    │                                     │  │
-│  │                  │  Resample   │                                     │  │
-│  │                  └─────────────┘                                     │  │
+│  │   ┌─────────────────────┼─────────────────────────────────────────┐  │  │
+│  │   │                     │     MEMORY SYSTEM (NEW)                 │  │  │
+│  │   │   ┌─────────────────▼─────────────────┐                       │  │  │
+│  │   │   │         Memory Manager            │                       │  │  │
+│  │   │   │                                   │                       │  │  │
+│  │   │   │  ┌───────────┐  ┌───────────┐    │                       │  │  │
+│  │   │   │  │Conversation│  │ Embedding │    │                       │  │  │
+│  │   │   │  │  Memory    │  │  Client   │    │  ◀── Coming Soon     │  │  │
+│  │   │   │  └───────────┘  └───────────┘    │                       │  │  │
+│  │   │   │         │              │          │                       │  │  │
+│  │   │   │         ▼              ▼          │                       │  │  │
+│  │   │   │  ┌─────────────────────────┐     │                       │  │  │
+│  │   │   │  │    Vector Store         │     │                       │  │  │
+│  │   │   │  │  Local │ Pinecone │ ... │     │                       │  │  │
+│  │   │   │  └─────────────────────────┘     │                       │  │  │
+│  │   │   └───────────────────────────────────┘                       │  │  │
+│  │   └───────────────────────────────────────────────────────────────┘  │  │
 │  │                                                                      │  │
-│  │   ┌────────────────────────────────────────────────────────────┐    │  │
-│  │   │                    Observability                           │    │  │
-│  │   │   Tracing (OTLP)  │  Metrics (Prometheus)  │  Logging      │    │  │
-│  │   └────────────────────────────────────────────────────────────┘    │  │
+│  │   ┌──────────────────────────────────────────────────────────────┐  │  │
+│  │   │                 EXPERIMENTAL FEATURES                        │  │  │
+│  │   │                                                              │  │  │
+│  │   │   ┌────────────────┐        ┌────────────────┐              │  │  │
+│  │   │   │    WebRTC      │        │    Emotion     │              │  │  │
+│  │   │   │   Transport    │        │   Detector     │              │  │  │
+│  │   │   │                │        │                │              │  │  │
+│  │   │   │  • Signaling   │        │  • Text        │              │  │  │
+│  │   │   │  • ICE (WIP)   │        │  • Voice (WIP) │              │  │  │
+│  │   │   │  • Data Ch.    │        │  • Multimodal  │              │  │  │
+│  │   │   └────────────────┘        └────────────────┘              │  │  │
+│  │   │                                                              │  │  │
+│  │   └──────────────────────────────────────────────────────────────┘  │  │
+│  │                                                                      │  │
+│  │                  ┌──────────────┐                                    │  │
+│  │                  │  WASM Core   │  ◀── Rust                         │  │
+│  │                  │              │                                    │  │
+│  │                  │  VAD         │                                    │  │
+│  │                  │  Denoise     │                                    │  │
+│  │                  │  Pitch (WIP) │  ◀── For emotion                  │  │
+│  │                  └──────────────┘                                    │  │
 │  │                                                                      │  │
 │  └──────────────────────────────────────────────────────────────────────┘  │
 │                                         │                                  │
 ├─────────────────────────────────────────┼──────────────────────────────────┤
-│                        WebSocket Transport                                 │
-└─────────────────────────────────────────┼──────────────────────────────────┘
-                                          │
-┌─────────────────────────────────────────┼──────────────────────────────────┐
-│                              SERVER TIER                                   │
-├─────────────────────────────────────────┼──────────────────────────────────┤
-│                                         ▼                                  │
-│   ┌─────────────────────────────────────────────────────────────────┐     │
-│   │                     Kubernetes Cluster                          │     │
-│   │                                                                 │     │
-│   │   ┌─────────────┐  ┌─────────────┐  ┌─────────────┐            │     │
-│   │   │  Jellytent  │  │  Jellytent  │  │  Jellytent  │   (HPA)    │     │
-│   │   │   Pod #1    │  │   Pod #2    │  │   Pod #3    │            │     │
-│   │   └─────────────┘  └─────────────┘  └─────────────┘            │     │
-│   │          │                │                │                    │     │
-│   │          └────────────────┼────────────────┘                    │     │
-│   │                           │                                     │     │
-│   │   ┌───────────────────────▼───────────────────────┐            │     │
-│   │   │              Service Mesh                      │            │     │
-│   │   └───────────────────────┬───────────────────────┘            │     │
-│   │                           │                                     │     │
-│   │   ┌───────────┬───────────┼───────────┬───────────┐            │     │
-│   │   │           │           │           │           │            │     │
-│   │   ▼           ▼           ▼           ▼           ▼            │     │
-│   │ ┌─────┐   ┌─────┐   ┌─────────┐   ┌─────┐   ┌─────────┐       │     │
-│   │ │Redis│   │ STT │   │   LLM   │   │ TTS │   │   NLU   │       │     │
-│   │ │     │   │(Py) │   │ Gateway │   │(Py) │   │  (Py)   │       │     │
-│   │ └─────┘   └─────┘   └─────────┘   └─────┘   └─────────┘       │     │
-│   │                                                                 │     │
-│   └─────────────────────────────────────────────────────────────────┘     │
-│                                                                            │
-│   ┌─────────────────────────────────────────────────────────────────┐     │
-│   │                    Observability Stack                          │     │
-│   │                                                                 │     │
-│   │   ┌───────────┐   ┌───────────┐   ┌───────────┐                │     │
-│   │   │   Jaeger  │   │Prometheus │   │   Loki    │                │     │
-│   │   │  Tracing  │   │  Metrics  │   │   Logs    │                │     │
-│   │   └───────────┘   └───────────┘   └───────────┘                │     │
-│   │                                                                 │     │
-│   └─────────────────────────────────────────────────────────────────┘     │
-│                                                                            │
-└────────────────────────────────────────────────────────────────────────────┘
+│              Transport Layer (WebSocket / WebRTC)                          │
+└─────────────────────────────────────────┴──────────────────────────────────┘
 ```
 
-### Module Architecture
+### Memory System Architecture
 
 ```
-@jellyjelly/jellytent
-├── core/
-│   ├── Jellytent          # Main orchestrator
-│   └── Agent              # Connection & messaging
-├── transport/
-│   └── WebSocketTransport # WebSocket client
-├── voice/
-│   ├── VoicePipeline      # Audio processing
-│   └── WasmLoader         # WASM module loader
-├── avatar/
-│   └── AvatarEngine       # Animation system
-├── llm/
-│   └── LLMClient          # LLM abstraction
-├── plugins/
-│   ├── PluginManager      # Plugin lifecycle
-│   └── types              # Plugin interfaces
-├── observability/
-│   ├── MetricsCollector   # Prometheus metrics
-│   └── TracingProvider    # OpenTelemetry tracing
-└── types/
-    └── index              # All TypeScript types
+┌─────────────────────────────────────────────────────────────────┐
+│                      Memory Manager                             │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│   User Message                                                  │
+│        │                                                        │
+│        ▼                                                        │
+│   ┌─────────────┐     ┌─────────────┐     ┌─────────────┐      │
+│   │   Store     │────▶│   Embed     │────▶│   Index     │      │
+│   │   Message   │     │   (TODO)    │     │   (TODO)    │      │
+│   └─────────────┘     └─────────────┘     └─────────────┘      │
+│                                                                 │
+│   Query                                                         │
+│        │                                                        │
+│        ▼                                                        │
+│   ┌─────────────┐     ┌─────────────┐     ┌─────────────┐      │
+│   │   Embed     │────▶│   Search    │────▶│   Rank &    │      │
+│   │   Query     │     │   Similar   │     │   Return    │      │
+│   │   (TODO)    │     │   (TODO)    │     │             │      │
+│   └─────────────┘     └─────────────┘     └─────────────┘      │
+│                                                                 │
+│   Storage Backends:                                             │
+│   ┌─────────┐  ┌──────────┐  ┌──────────┐  ┌─────────┐         │
+│   │  Local  │  │ Pinecone │  │ Weaviate │  │  Qdrant │         │
+│   │   ✅    │  │   TODO   │  │   TODO   │  │   TODO  │         │
+│   └─────────┘  └──────────┘  └──────────┘  └─────────┘         │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Installation
+## Memory System
 
-### Prerequisites
+### How It Works
 
-| Requirement | Version | Purpose |
-|-------------|---------|---------|
-| Node.js | ≥18.0.0 | Runtime |
-| Rust | ≥1.74 | WASM build |
-| Python | ≥3.11 | ML components |
-| wasm-pack | Latest | WASM toolchain |
-| Docker | ≥24.0 | Containerization |
+1. **Message Storage**: Every user and assistant message is stored
+2. **Embedding Generation**: Messages are converted to vector embeddings (TODO)
+3. **Semantic Search**: When processing a new message, relevant past context is retrieved
+4. **Context Injection**: Retrieved memories are provided to the LLM
 
-### NPM Package
-
-```bash
-npm install @jellyjelly/jellytent
-```
-
-### Full Development Setup
-
-```bash
-# Clone repository
-git clone https://github.com/jellyjelly/jellytent.git
-cd jellytent
-
-# Install Node.js dependencies
-npm install
-
-# Install Python ML dependencies
-cd python && pip install -e ".[all,dev]" && cd ..
-
-# Install Rust toolchain (if needed)
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-cargo install wasm-pack
-
-# Build everything
-npm run build
-
-# Verify installation
-npm test
-pytest python/tests
-```
-
-### Docker Installation
-
-```bash
-# Build multi-stage Docker image
-docker build -t jellytent:0.4.0 -f docker/Dockerfile .
-
-# Run with configuration
-docker run -p 8080:8080 -p 9090:9090 \
-  -e JELLYTENT_API_KEY=your_key \
-  -e LOG_LEVEL=info \
-  -e TELEMETRY_ENABLED=true \
-  jellytent:0.4.0
-```
-
-### Kubernetes Installation
-
-```bash
-# Add Helm repository
-helm repo add jellyjelly https://charts.jellyjelly.io
-helm repo update
-
-# Install with default values
-helm install jellytent jellyjelly/jellytent \
-  --set config.apiKey=$JELLYTENT_API_KEY
-
-# Install with custom values
-helm install jellytent jellyjelly/jellytent \
-  -f values-production.yaml
-```
-
----
-
-## Quick Start
-
-### Basic Usage
+### Configuration Options
 
 ```typescript
-import { Jellytent } from '@jellyjelly/jellytent';
+interface MemoryConfig {
+  /**
+   * Enable the memory system
+   * @default false
+   */
+  enabled: boolean;
 
-const client = new Jellytent({
-  apiKey: process.env.JELLYTENT_API_KEY!,
-  avatar: { enabled: true, style: 'luminescent' },
-  telemetry: { enabled: true },
-});
+  /**
+   * Storage provider
+   * @default 'local'
+   *
+   * - 'local': In-memory storage (development only)
+   * - 'pinecone': Pinecone vector database (coming soon)
+   * - 'weaviate': Weaviate vector database (coming soon)
+   * - 'qdrant': Qdrant vector database (coming soon)
+   */
+  provider: 'local' | 'pinecone' | 'weaviate' | 'qdrant';
 
-await client.initialize();
-await client.connect();
+  /**
+   * Maximum messages to store
+   * Older messages are pruned (with summarization TODO)
+   * @default 100
+   */
+  maxHistory: number;
 
-client.on('response', (response) => {
-  console.log('Agent:', response.text);
-});
-
-await client.sendText('Hello!');
-```
-
-### With Plugins
-
-```typescript
-import { Jellytent, Plugin } from '@jellyjelly/jellytent';
-
-// Define a custom plugin
-const weatherPlugin: Plugin = {
-  name: 'weather',
-  version: '1.0.0',
-
-  async onMessage(message, ctx) {
-    if (message.toLowerCase().includes('weather')) {
-      ctx.logger.info('Weather query detected');
-
-      // Fetch weather data
-      const weather = await fetchWeather();
-
-      return {
-        handled: false,  // Let LLM process with context
-        content: `${message}\n\n[Current weather: ${weather}]`,
-      };
-    }
-  },
-};
-
-const client = new Jellytent({
-  apiKey: process.env.JELLYTENT_API_KEY!,
-});
-
-await client.initialize();
-client.registerPlugin(weatherPlugin);
-await client.connect();
-```
-
-### With Full Observability
-
-```typescript
-import { Jellytent } from '@jellyjelly/jellytent';
-
-const client = new Jellytent({
-  apiKey: process.env.JELLYTENT_API_KEY!,
-  telemetry: {
-    enabled: true,
-    endpoint: 'http://otel-collector:4318',
-    serviceName: 'my-app-jellytent',
-    sampleRate: 0.1,  // Sample 10% of traces
-  },
-});
-
-await client.initialize();
-
-// Metrics available at runtime
-const metrics = await client.getMetrics();  // Prometheus format
-```
-
----
-
-## Plugin System
-
-### Plugin Lifecycle
-
-```
-┌──────────────┐     ┌──────────────┐     ┌──────────────┐
-│   Register   │────▶│    onInit    │────▶│    Active    │
-└──────────────┘     └──────────────┘     └──────┬───────┘
-                                                 │
-       ┌─────────────────────────────────────────┤
-       │                                         │
-       ▼                                         ▼
-┌──────────────┐                          ┌──────────────┐
-│  onMessage   │◀────────────────────────▶│ onResponse   │
-└──────────────┘                          └──────────────┘
-       │                                         │
-       └─────────────────────────────────────────┤
-                                                 │
-┌──────────────┐     ┌──────────────┐     ┌──────▼───────┐
-│  Unregister  │◀────│  onDestroy   │◀────│   Disable    │
-└──────────────┘     └──────────────┘     └──────────────┘
-```
-
-### Plugin Interface
-
-```typescript
-interface Plugin {
-  // Required
-  name: string;
-  version: string;
-
-  // Optional metadata
-  description?: string;
-  priority?: number;  // Higher = runs first
-
-  // Lifecycle hooks
-  onInit?(ctx: PluginContext): Promise<void>;
-  onDestroy?(ctx: PluginContext): Promise<void>;
-
-  // Message processing
-  onMessage?(message: string, ctx: PluginContext): Promise<PluginResult | void>;
-  onResponse?(response: string, ctx: PluginContext): Promise<string | void>;
-
-  // State changes
-  onStateChange?(state: string, ctx: PluginContext): Promise<void>;
-
-  // Tool handling
-  onToolCall?(
-    toolName: string,
-    args: Record<string, unknown>,
-    ctx: PluginContext,
-  ): Promise<unknown>;
-}
-
-interface PluginContext {
-  logger: Logger;
-  sessionId?: string;
-  config: Record<string, unknown>;
-}
-
-interface PluginResult {
-  handled: boolean;  // If true, stop processing
-  content: string;   // Modified content
-  action?: string;   // Optional action identifier
-  payload?: unknown; // Optional data
+  /**
+   * Embedding model for semantic search
+   * @default 'text-embedding-3-small'
+   */
+  embeddingModel: string;
 }
 ```
 
-### Example Plugins
-
-#### Logging Plugin
+### Memory API
 
 ```typescript
-const loggingPlugin: Plugin = {
-  name: 'logging',
-  version: '1.0.0',
-  priority: 100,  // Run first
+class Jellytent {
+  /**
+   * Clear all stored memories
+   */
+  async clearMemory(): Promise<void>;
 
-  async onMessage(message, ctx) {
-    ctx.logger.info('User message', { length: message.length });
-  },
+  /**
+   * Get memory statistics
+   */
+  async getMemoryStats(): Promise<{
+    messageCount: number;
+    oldestTimestamp?: number;
+  }>;
+}
 
-  async onResponse(response, ctx) {
-    ctx.logger.info('Agent response', { length: response.length });
-    return response;
-  },
-};
+// Events
+client.on('memory:updated', () => {
+  console.log('Memory was updated');
+});
 ```
 
-#### Content Filter Plugin
+### Current Limitations
 
-```typescript
-const filterPlugin: Plugin = {
-  name: 'content-filter',
-  version: '1.0.0',
-
-  async onResponse(response, ctx) {
-    // Filter sensitive information
-    return response.replace(/\b\d{4}-\d{4}-\d{4}-\d{4}\b/g, '[REDACTED]');
-  },
-};
-```
-
-#### Command Handler Plugin
-
-```typescript
-const commandPlugin: Plugin = {
-  name: 'commands',
-  version: '1.0.0',
-
-  async onMessage(message, ctx) {
-    if (message.startsWith('/')) {
-      const [command, ...args] = message.slice(1).split(' ');
-
-      switch (command) {
-        case 'help':
-          return {
-            handled: true,
-            content: 'Available commands: /help, /clear, /status',
-          };
-        case 'clear':
-          // Clear conversation history
-          return { handled: true, content: 'History cleared.' };
-        default:
-          return { handled: false, content: message };
-      }
-    }
-  },
-};
-```
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Local storage | ✅ Working | In-memory only, no persistence |
+| Message storage | ✅ Working | Basic CRUD operations |
+| Recent retrieval | ✅ Working | Returns N most recent |
+| Embedding generation | ❌ TODO | Placeholder implementation |
+| Semantic search | ❌ TODO | Falls back to recent |
+| Pinecone provider | ❌ TODO | Interface defined |
+| Weaviate provider | ❌ TODO | Interface defined |
+| Qdrant provider | ❌ TODO | Interface defined |
+| Memory summarization | ❌ TODO | For pruning old memories |
+| Memory pruning | ⚠️ Basic | Simple FIFO, no relevance |
 
 ---
 
-## Observability
+## Multi-Modal Input
 
-### Metrics
+### Supported Content Types
 
-Jellytent exposes Prometheus-compatible metrics:
+| Type | Status | Notes |
+|------|--------|-------|
+| Text | ✅ Working | Standard text messages |
+| Image URL | 🚧 Beta | Basic implementation |
+| Image Base64 | ❌ TODO | Needs encoding |
+| Audio | ✅ Working | Via voice pipeline |
+| Video | ❌ TODO | Frame extraction needed |
 
-| Metric | Type | Labels | Description |
-|--------|------|--------|-------------|
-| `jellytent_messages_total` | Counter | direction, type | Total messages |
-| `jellytent_audio_frames_total` | Counter | - | Audio frames processed |
-| `jellytent_latency_seconds` | Histogram | operation | Operation latency |
-| `jellytent_active_sessions` | Gauge | - | Current sessions |
-| `jellytent_vad_activations_total` | Counter | state | VAD events |
-| `jellytent_errors_total` | Counter | type | Error count |
-| `jellytent_plugins_loaded_total` | Counter | - | Plugins loaded |
-| `jellytent_plugin_errors_total` | Counter | plugin | Plugin errors |
-
-#### Accessing Metrics
+### Usage Examples
 
 ```typescript
-// Programmatic access
-const metricsCollector = client.getMetrics();
-const prometheusText = await metricsCollector.getMetrics();
+// Simple image + text
+await client.sendImage(
+  'https://example.com/diagram.png',
+  'Explain this architecture diagram'
+);
 
-// HTTP endpoint (server mode)
-// GET /metrics
+// Multiple images (coming soon)
+await client.sendMultimodal([
+  { type: 'text', text: 'What are the differences between these?' },
+  { type: 'image', url: 'https://example.com/before.png', alt: 'Before' },
+  { type: 'image', url: 'https://example.com/after.png', alt: 'After' },
+]);
 ```
 
-#### Grafana Dashboard
+### Vision Model Support
 
-Import our pre-built dashboard: `dashboards/jellytent-overview.json`
+| Provider | Model | Status |
+|----------|-------|--------|
+| OpenAI | gpt-4-vision-preview | 🚧 Testing |
+| OpenAI | gpt-4o | 🚧 Testing |
+| Anthropic | claude-3-opus | ❌ TODO |
+| Google | gemini-pro-vision | ❌ TODO |
 
-### Tracing
+---
 
-OpenTelemetry traces are emitted for all major operations:
+## Experimental Features
 
+> ⚠️ **Warning**: Experimental features have unstable APIs and may be removed or significantly changed.
+
+### WebRTC Transport
+
+```typescript
+// Import from experimental
+import { WebRTCTransport } from '@jellyjelly/jellytent/experimental';
+
+const transport = new WebRTCTransport({
+  signalingUrl: 'wss://signal.jellyjelly.io',
+  apiKey: 'your-key',
+  sessionId: 'session-123',
+});
+
+// Events
+transport.on('track', (track, streams) => {
+  // Handle incoming audio/video track
+  const audio = new Audio();
+  audio.srcObject = streams[0];
+  audio.play();
+});
+
+await transport.connect();
+await transport.sendAudio(audioTrack);
 ```
-jellytent.initialize
-├── wasm.load
-├── plugins.init
-└── avatar.init
 
-jellytent.connect
-└── transport.connect
-    └── websocket.handshake
+**Implementation Status:**
 
-agent.send
-├── plugins.processMessage
-├── transport.send
-└── llm.complete (if applicable)
+- [x] Basic signaling connection
+- [x] Peer connection creation
+- [x] Data channel for messages
+- [ ] ICE candidate handling
+- [ ] TURN server support
+- [ ] Graceful reconnection
+- [ ] Quality adaptation
 
-agent.handleMessage
-├── plugins.processResponse
-└── avatar.startSpeaking
+### Emotion Detection
+
+```typescript
+import { EmotionDetector } from '@jellyjelly/jellytent/experimental';
+
+const detector = new EmotionDetector({
+  textModel: 'distilbert-emotion',
+  voiceModel: 'wav2vec-emotion',  // Not yet implemented
+  smoothingFactor: 0.3,
+});
+
+await detector.initialize();
+
+// Text-based detection
+const textEmotion = await detector.detectFromText('I am so happy!');
+console.log(textEmotion);
+// {
+//   primary: 'happy',
+//   confidence: 0.85,
+//   valence: 0.8,
+//   arousal: 0.6
+// }
+
+// Voice-based detection (basic)
+const voiceEmotion = await detector.detectFromVoice(audioBuffer);
+
+// Multimodal fusion
+const combined = await detector.detectMultimodal('Great news!', audioBuffer);
 ```
 
-#### Trace Configuration
+**Available Emotions:**
+
+| Emotion | Valence | Arousal |
+|---------|---------|---------|
+| `happy` | +0.8 | 0.6 |
+| `surprised` | +0.5 | 0.7 |
+| `neutral` | 0.0 | 0.2 |
+| `fearful` | -0.3 | 0.8 |
+| `sad` | -0.6 | 0.3 |
+| `angry` | -0.5 | 0.9 |
+| `disgusted` | -0.7 | 0.5 |
+
+### Emotion-Reactive Avatar
 
 ```typescript
 const client = new Jellytent({
   apiKey: '...',
-  telemetry: {
+  avatar: {
     enabled: true,
-    endpoint: 'http://jaeger:4318/v1/traces',
-    serviceName: 'jellytent-prod',
-    sampleRate: 0.1,
-    exportInterval: 10000,
+    style: 'expressive',      // New style with emotion support
+    emotionReactive: true,
   },
 });
+
+// Avatar automatically reacts to detected emotions
+// - Happy: Bouncy tentacles, brighter glow
+// - Sad: Droopy tentacles, dimmer glow
+// - Angry: Tense, rapid movements
+// - Surprised: Wide spread tentacles
 ```
 
-### Logging
+---
 
-Structured JSON logging in production:
+## Migration from v0.4.x
+
+### Breaking Changes
+
+```typescript
+// 1. VoicePipeline event signature changed
+// Before (v0.4.x)
+pipeline.on('vad:change', (active: boolean) => {});
+
+// After (v0.5.0)
+pipeline.on('vad:change', (active: boolean, confidence: number) => {});
+
+// 2. State change event includes previous state
+// Before (v0.4.x)
+client.on('state:change', (state) => {});
+
+// After (v0.5.0)
+client.on('state:change', (state, prevState) => {});
+
+// 3. Message content can be array for multimodal
+// Before (v0.4.x)
+interface Message {
+  content: string;
+}
+
+// After (v0.5.0)
+interface Message {
+  content: string | MessageContent[];
+}
+```
+
+### New Dependencies
 
 ```json
 {
-  "timestamp": "2024-01-15T10:30:00.000Z",
-  "level": "info",
-  "service": "jellytent",
-  "message": "Connected successfully",
-  "sessionId": "abc-123",
-  "endpoint": "wss://api.jellyjelly.io"
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.10.0",
+    "hnswlib-node": "^3.0.0",  // For local vector search
+    "openai": "^4.20.0"
+  }
 }
 ```
 
-Configuration:
+### Configuration Changes
 
 ```typescript
-// Environment variable
-LOG_LEVEL=debug  // debug | info | warn | error
+// New config options
+interface JellytentConfig {
+  // ... existing options ...
 
-// Or in code
-import { logger } from '@jellyjelly/jellytent';
-logger.configure({ level: 'debug', structured: true });
+  memory?: MemoryConfig;  // NEW
+
+  avatar?: {
+    // ... existing options ...
+    emotionReactive?: boolean;  // NEW
+  };
+
+  llm?: {
+    // ... existing options ...
+    parallelToolCalls?: boolean;  // NEW, default: true
+  };
+}
 ```
 
 ---
 
-## Deployment
+## Development Status
 
-### Docker Compose (Development)
+### Feature Completion
 
-```yaml
-version: '3.8'
+| Module | Completion | Notes |
+|--------|------------|-------|
+| Core SDK | 95% | Stable |
+| Memory Manager | 40% | Local only |
+| Embedding Client | 0% | Not started |
+| Vector Search | 20% | Basic cosine similarity |
+| Multi-modal | 30% | Image URLs only |
+| WebRTC | 25% | Basic signaling |
+| Emotion (Text) | 60% | Rule-based |
+| Emotion (Voice) | 20% | Energy-based only |
 
-services:
-  jellytent:
-    build: .
-    ports:
-      - "8080:8080"
-      - "9090:9090"
-    environment:
-      - JELLYTENT_API_KEY=${JELLYTENT_API_KEY}
-      - LOG_LEVEL=debug
-      - TELEMETRY_ENABLED=true
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
-    depends_on:
-      - otel-collector
-      - redis
+### Known Issues
 
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
+1. **Memory**: Embeddings not implemented, falls back to recent messages
+2. **Multi-modal**: Only supports image URLs, not base64 or uploads
+3. **WebRTC**: ICE handling incomplete, may fail behind NAT
+4. **Emotion**: Voice emotion requires proper ML model (placeholder)
 
-  otel-collector:
-    image: otel/opentelemetry-collector:latest
-    ports:
-      - "4318:4318"
-    volumes:
-      - ./otel-config.yaml:/etc/otel/config.yaml
+### Test Coverage
 
-  jaeger:
-    image: jaegertracing/all-in-one:latest
-    ports:
-      - "16686:16686"  # UI
-
-  prometheus:
-    image: prom/prometheus:latest
-    ports:
-      - "9091:9090"
-    volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+```
+--------------------------|---------|----------|---------|---------|
+File                      | % Stmts | % Branch | % Funcs | % Lines |
+--------------------------|---------|----------|---------|---------|
+All files                 |   81.2  |   72.4   |   78.9  |   81.0  |
+ src/core                 |   92.1  |   85.3   |   90.0  |   92.0  |
+ src/memory               |   68.4  |   55.2   |   70.0  |   68.0  |
+ src/experimental         |   45.2  |   38.1   |   50.0  |   45.0  |
+--------------------------|---------|----------|---------|---------|
 ```
 
-### Kubernetes (Production)
+---
 
-#### Using Helm
+## Roadmap
+
+### v0.5.0 Final (Target: Q1 2024)
+
+- [ ] Complete embedding integration
+- [ ] Pinecone provider
+- [ ] Base64 image support
+- [ ] Voice emotion detection
+- [ ] Memory summarization
+
+### v0.6.0 (Target: Q2 2024)
+
+- [ ] Video input support
+- [ ] WebRTC stable release
+- [ ] Weaviate/Qdrant providers
+- [ ] Custom emotion models
+- [ ] React Native SDK
+
+### v1.0.0 (Target: Q3 2024)
+
+- [ ] Production-ready memory system
+- [ ] All vector store providers
+- [ ] Complete multi-modal support
+- [ ] Stable experimental features
+- [ ] Enterprise SLA support
+
+---
+
+## Contributing
+
+This is a proprietary project. See [CONTRIBUTING.md](CONTRIBUTING.md) for internal guidelines.
+
+### Development Setup
 
 ```bash
-# Install
-helm install jellytent jellyjelly/jellytent \
-  --namespace jellytent \
-  --create-namespace \
-  --set image.tag=0.4.0 \
-  --set replicaCount=3 \
-  --set config.apiKey=$JELLYTENT_API_KEY \
-  --set autoscaling.enabled=true \
-  --set autoscaling.minReplicas=3 \
-  --set autoscaling.maxReplicas=20
+# Clone and install
+git clone https://github.com/jellyjelly/jellytent.git
+cd jellytent
+npm install
+pip install -e "./python[all,dev]"
 
-# Upgrade
-helm upgrade jellytent jellyjelly/jellytent \
-  --reuse-values \
-  --set image.tag=0.4.1
+# Build
+npm run build
 
-# Check status
-kubectl get pods -n jellytent
-kubectl get hpa -n jellytent
+# Test
+npm test
+pytest python/tests
+
+# Watch mode
+npm run dev
 ```
 
-#### Helm Values (Production)
+### Commit Convention
 
-```yaml
-# values-production.yaml
-replicaCount: 3
-
-image:
-  repository: jellyjelly/jellytent
-  tag: "0.4.0"
-  pullPolicy: IfNotPresent
-
-resources:
-  requests:
-    cpu: 500m
-    memory: 512Mi
-  limits:
-    cpu: 2000m
-    memory: 2Gi
-
-autoscaling:
-  enabled: true
-  minReplicas: 3
-  maxReplicas: 20
-  targetCPUUtilizationPercentage: 70
-  targetMemoryUtilizationPercentage: 80
-
-config:
-  logLevel: info
-  telemetry:
-    enabled: true
-    endpoint: http://otel-collector.monitoring:4318
-    sampleRate: 0.1
-
-ingress:
-  enabled: true
-  className: nginx
-  annotations:
-    cert-manager.io/cluster-issuer: letsencrypt-prod
-    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
-    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
-    nginx.ingress.kubernetes.io/websocket-services: jellytent
-  hosts:
-    - host: jellytent.yourcompany.com
-      paths:
-        - path: /
-          pathType: Prefix
-  tls:
-    - secretName: jellytent-tls
-      hosts:
-        - jellytent.yourcompany.com
-
-redis:
-  enabled: true
-  architecture: replication
-  auth:
-    enabled: true
 ```
-
-### Auto-Scaling Behavior
-
-```yaml
-behavior:
-  scaleUp:
-    stabilizationWindowSeconds: 60
-    policies:
-      - type: Pods
-        value: 4
-        periodSeconds: 60
-      - type: Percent
-        value: 100
-        periodSeconds: 60
-    selectPolicy: Max
-  scaleDown:
-    stabilizationWindowSeconds: 300
-    policies:
-      - type: Percent
-        value: 25
-        periodSeconds: 120
-```
-
----
-
-## API Reference
-
-### Jellytent Class
-
-```typescript
-class Jellytent extends EventEmitter<JellytentEvents> {
-  constructor(config: JellytentConfig);
-
-  // Lifecycle
-  initialize(): Promise<void>;
-  connect(): Promise<void>;
-  disconnect(): Promise<void>;
-  destroy(): Promise<void>;
-
-  // Messaging
-  sendText(text: string): Promise<void>;
-  startAudioStream(): void;
-  stopAudioStream(): void;
-
-  // Plugins
-  registerPlugin(plugin: Plugin): void;
-  unregisterPlugin(name: string): void;
-
-  // State
-  getState(): AgentState;
-  getSessionId(): string | undefined;
-}
-```
-
-### Events
-
-```typescript
-interface JellytentEvents {
-  'state:change': (state: AgentState, prevState: AgentState) => void;
-  'connected': () => void;
-  'disconnected': (reason: { reason: string; code?: number }) => void;
-  'response': (response: ResponsePayload) => void;
-  'response:start': (id: string) => void;
-  'response:chunk': (id: string, chunk: string) => void;
-  'response:end': (id: string) => void;
-  'avatar:update': (state: AvatarState) => void;
-  'voice:activity': (active: { active: boolean; confidence: number }) => void;
-  'plugin:loaded': (name: string) => void;
-  'plugin:error': (name: string, error: Error) => void;
-  'error': (error: Error) => void;
-}
-```
-
-### Error Types
-
-```typescript
-class JellytentError extends Error {
-  code: string;
-  retryable: boolean;
-  cause?: Error;
-}
-
-class ConnectionError extends JellytentError {}    // Retryable
-class AuthenticationError extends JellytentError {} // Not retryable
-class RateLimitError extends JellytentError {      // Retryable
-  retryAfter: number;  // Seconds
-}
-```
-
----
-
-## Python ML Components
-
-### Installation
-
-```bash
-# Full installation
-pip install jellytent-ml[all]
-
-# Specific components
-pip install jellytent-ml[stt]  # Whisper
-pip install jellytent-ml[tts]  # Coqui TTS
-pip install jellytent-ml[nlu]  # Intent classification
-```
-
-### Speech-to-Text
-
-```python
-from jellytent_ml import WhisperSTT
-import numpy as np
-
-stt = WhisperSTT(model_size="base")
-
-# Transcribe audio
-audio = np.random.randn(16000).astype(np.float32)  # 1 second
-result = await stt.transcribe(audio, sample_rate=16000)
-
-print(result.text)        # Transcribed text
-print(result.confidence)  # 0-1
-print(result.language)    # Detected language
-```
-
-### Text-to-Speech
-
-```python
-from jellytent_ml import CoquiTTS
-
-tts = CoquiTTS(model_name="tts_models/en/ljspeech/tacotron2-DDC")
-
-# Synthesize speech
-result = await tts.synthesize("Hello, world!")
-
-print(result.audio.shape)    # Audio samples
-print(result.sample_rate)    # Sample rate
-print(result.duration_ms)    # Duration
-```
-
-### Intent Classification
-
-```python
-from jellytent_ml import IntentClassifier
-
-classifier = IntentClassifier()
-
-result = await classifier.classify("What's the weather like?")
-
-print(result.intents[0].name)       # "weather"
-print(result.intents[0].confidence) # 0.92
-print(result.sentiment)             # "neutral"
+feat: add memory search with embeddings
+fix: resolve WebRTC ICE timeout
+wip: emotion detection from voice
+experimental: add video frame extraction
 ```
 
 ---
@@ -886,12 +656,10 @@ print(result.sentiment)             # "neutral"
 
 | Channel | Link |
 |---------|------|
-| Documentation | https://docs.jellyjelly.io/jellytent |
+| Beta Feedback | beta-feedback@jellyjelly.io |
+| Documentation | https://docs.jellyjelly.io/jellytent/beta |
 | GitHub Issues | https://github.com/jellyjelly/jellytent/issues |
-| Email Support | support@jellyjelly.io |
-| Enterprise | enterprise@jellyjelly.io |
-| Discord | https://discord.gg/jellyjelly |
-| Status Page | https://status.jellyjelly.io |
+| Discord (#beta) | https://discord.gg/jellyjelly |
 
 ---
 
@@ -899,6 +667,4 @@ print(result.sentiment)             # "neutral"
 
 Copyright © 2024 JellyJelly Inc. All rights reserved.
 
-This software is proprietary and confidential. Unauthorized copying, modification, distribution, or use of this software is strictly prohibited.
-
-For licensing inquiries: licensing@jellyjelly.io
+This software is proprietary and confidential. Beta access is granted under separate agreement.

@@ -21,6 +21,8 @@ python/build/
 python/dist/
 .mypy_cache/
 .ruff_cache/
+.venv/
+venv/
 
 # Environment
 .env
@@ -32,6 +34,7 @@ python/dist/
 .vscode/
 *.swp
 *.swo
+.nvim/
 
 # OS
 .DS_Store
@@ -54,3 +57,11 @@ playwright-report/
 
 # Helm
 deploy/helm/jellytent/charts/
+
+# Memory/cache (development)
+.memory-cache/
+*.db
+*.sqlite
+
+# Experimental feature outputs
+.experimental/

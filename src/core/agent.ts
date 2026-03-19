@@ -1,9 +1,12 @@
 import EventEmitter from 'eventemitter3';
 import { v4 as uuidv4 } from 'uuid';
-import { AgentConfig, AgentConfigSchema, AgentState, Message, TransportMessage, ConnectionError } from '../types';
+import { AgentConfig, AgentConfigSchema, AgentState, Message, MessageContent, TransportMessage, ConnectionError } from '../types';
 import { WebSocketTransport } from '../transport/websocket';
 import { withSpan } from '../observability/tracing';
 import { logger } from '../utils/logger';
+
+// TODO: Import when stable
+// import { WebRTCTransport } from '../experimental/webrtc-transport';
 
 interface AgentEvents {
   'state:change': (state: AgentState, prevState: AgentState) => void;
@@ -18,6 +21,8 @@ export class Agent extends EventEmitter<AgentEvents> {
   private state: AgentState = 'idle';
   private messages: Message[] = [];
   private transport: WebSocketTransport | null = null;
+  // TODO: Support WebRTC transport
+  // private webrtcTransport: WebRTCTransport | null = null;
   private readonly sessionId: string;
   private reconnectAttempts = 0;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -113,6 +118,7 @@ export class Agent extends EventEmitter<AgentEvents> {
       } else if (data.type === 'control') {
         this.handleControlMessage(data.payload as Record<string, unknown>);
       }
+      // TODO: Handle image responses for multimodal
     });
   }
 
@@ -132,6 +138,7 @@ export class Agent extends EventEmitter<AgentEvents> {
       case 'listening_start':
         this.setState('listening');
         break;
+      // TODO: Handle tool_call actions
     }
   }
 
@@ -191,6 +198,34 @@ export class Agent extends EventEmitter<AgentEvents> {
         timestamp: Date.now(),
       });
     });
+  }
+
+  // TODO: Implement multimodal message sending
+  async sendMultimodal(content: MessageContent[]): Promise<void> {
+    this.ensureConnected();
+
+    // For now, extract text and send that
+    const textContent = content
+      .filter((c): c is { type: 'text'; text: string } => c.type === 'text')
+      .map(c => c.text)
+      .join('\n');
+
+    if (textContent) {
+      await this.send(textContent);
+    }
+
+    // TODO: Handle image content
+    // const imageContent = content.filter(c => c.type === 'image');
+    // for (const img of imageContent) {
+    //   await this.transport!.send({
+    //     type: 'image',
+    //     payload: img,
+    //     seq: Date.now(),
+    //     timestamp: Date.now(),
+    //   });
+    // }
+
+    logger.warn('Multimodal sending not fully implemented');
   }
 
   async sendAudio(buffer: ArrayBuffer): Promise<void> {
